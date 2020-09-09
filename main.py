@@ -20,6 +20,7 @@ class CalculateTree(Transformer):
 
 @v_args(inline=True)
 class TestTransformer(Transformer):
+    # get rid of "integer" in the tree
     integer = int
 
 
@@ -27,7 +28,7 @@ def main():
     with open('grammar.lark', 'r') as grammar:
         # parser = Lark(grammar, parser='lalr', transformer=CalculateTree())
         # parser = Lark(grammar, parser='lalr', transformer=CalculateTree2())
-        parser = Lark(grammar, parser='lalr', debug=False)
+        parser = Lark(grammar, parser='earley', debug=False)
 
         test_input = 'a = "some string"\n'
         test_input += 'b = read("path")\n'
@@ -50,7 +51,9 @@ def main():
         #     # print(line)
         #     print(parser.parse(line))
 
-        print(parser.parse(test_input).pretty())
+        parse_tree = parser.parse(test_input)
+        parse_tree = TestTransformer().transform(parse_tree)
+        print(parse_tree.pretty())
 
 
 if __name__ == "__main__":
