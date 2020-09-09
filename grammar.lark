@@ -3,7 +3,7 @@
 // tokens in the regex to a function, might have to change the regular expressions to recursive
 // list definitions.
 
-?start: (statement NEWLINE)* (statement)?
+?start: (statement _NEWLINE)* (statement)?
 
 ?statement: relation_declaration
       | fact
@@ -51,7 +51,7 @@ span: "[" int "," int ")"
 
 ?int: INT -> integer
 
-?string: ESCAPED_STRING
+?string: STRING
 
 ?name_list: name ("," name)*
 
@@ -61,6 +61,6 @@ span: "[" int "," int ")"
 %import common.CNAME -> NAME
 %import common.WS_INLINE
 %ignore WS_INLINE
-%import common.ESCAPED_STRING
+%import common.ESCAPED_STRING -> STRING
 %import common.INT -> INT
-%import common.NEWLINE -> NEWLINE
+%import common.NEWLINE -> _NEWLINE
