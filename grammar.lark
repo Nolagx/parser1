@@ -3,7 +3,7 @@
 // tokens in the regex to a function, might have to change the regular expressions to recursive
 // list definitions.
 
-?start: (_NEWLINE)* (statement (_NEWLINE)*)* (statement)?
+?start: (_NEWLINE)* (statement (_NEWLINE)+)* (statement)?
 
 ?statement: relation_declaration
           | fact
@@ -69,4 +69,5 @@ _COMMENT: "#" /[^\n]*/
 %import common.ESCAPED_STRING -> STRING
 %import common.INT -> INT
 %import common.NEWLINE -> _NEWLINE
+%ignore _NEWLINE
 %ignore _COMMENT

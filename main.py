@@ -46,6 +46,7 @@ def main():
         test_input += 'parent(x, "greg", [10,13))\n'
         test_input += '?parent("bob", "greg")\n'
         test_input += '?parent(x, "greg", [10,13))\n'
+        test_input += '?parent(x, "greg", [10,13))\n'
 
         # non_empty_lines = (line for line in test_input.splitlines() if len(line))
 
