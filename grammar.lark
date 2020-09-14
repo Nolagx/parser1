@@ -54,7 +54,8 @@ span: "[" int "," int ")"
 
 ?int: INT -> integer
 
-?string: STRING
+?string: STRING -> string
+       | "(" STRING ((_NEWLINE)* STRING)* ")" -> string
 
 ?name_list: name ("," name)*
 
