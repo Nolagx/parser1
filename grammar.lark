@@ -13,7 +13,7 @@
           | assign_span
           | assign_var
 
-assign_string: name "=" string -> assign_normal_string
+assign_string: name "=" string -> assign_literal_string
              | name "=" "read" "(" string ")" -> assign_string_from_file_string_param
              | name "=" "read" "(" name ")" -> assign_string_from_file_var_param
 
@@ -52,14 +52,14 @@ ie_relation: name "<" name ">" "(" name_list ")"
 
 span: "[" int "," int ")"
 
-?int: INT -> integer
+int: INT -> integer
 
 string: STRING -> string
        | "(" STRING ((_NEWLINE)* STRING)* ")" -> string
 
 ?name_list: name ("," name)*
 
-?name: NAME
+name: NAME
 
 _COMMENT: "#" /[^\n]*/
 
