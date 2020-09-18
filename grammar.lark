@@ -59,12 +59,25 @@ string: STRING -> string
 
 ?name_list: name ("," name)*
 
-name: NAME
+var_name: LOWER_CASE_NAME
+
+free_var_name : UPPER_CASE_NAME
+
+name: LOWER_CASE_NAME
+    | UPPER_CASE_NAME
+
+LOWER_CASE_NAME: ("_"|LCASE_LETTER) ("_"|LETTER|DIGIT)*
+UPPER_CASE_NAME: UCASE_LETTER ("_"|LETTER|DIGIT)*
 
 _COMMENT: "#" /[^\n]*/
 
 // CNAME: ("_"|LETTER) ("_"|LETTER|DIGIT)*
-%import common.CNAME -> NAME
+// common definitions: https://github.com/lark-parser/lark/blob/master/lark/grammars/common.lark
+
+%import common.LCASE_LETTER
+%import common.UCASE_LETTER
+%import common.LETTER
+%import common.DIGIT
 %import common.WS_INLINE
 %ignore WS_INLINE
 %import common.ESCAPED_STRING -> STRING

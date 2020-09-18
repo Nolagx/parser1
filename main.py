@@ -1,5 +1,5 @@
 from lark import Lark, Transformer, v_args, Visitor
-from lark.visitors import Visitor_Recursive
+from lark.visitors import Interpreter
 from pyDatalog import pyDatalog
 
 
@@ -91,7 +91,65 @@ class FactVisitor(Visitor):
         pyDatalog.assert_fact(relation.name, *relation.terms)
 
 
-class CheckReferencedVariablesVisitor(Visitor_Recursive):
+# class CheckReferencedVariablesVisitor(Visitor_Recursive):
+#
+#     def __init__(self):
+#         super().__init__()
+#         self.vars = set()
+#
+#     def assign_literal_string(self, tree):
+#         assert_correct_node(tree, "assign_literal_string", 2, "name", "string")
+#         var_name = tree.children[0].children[0]
+#         self.vars.add(var_name)
+#
+#     def assign_string_from_file_string_param(self, tree):
+#         assert_correct_node(tree, "assign_string_from_file_string_param", 2, "name", "string")
+#         var_name = tree.children[0].children[0]
+#         self.vars.add(var_name)
+#
+#     def assign_string_from_file_var_param(self, tree):
+#         assert_correct_node(tree, "assign_string_from_file_var_param", 2, "name", "name")
+#         right_var_name = tree.children[1].children[0]
+#         if right_var_name not in self.vars:
+#             raise NameError("variable " + right_var_name + " is not defined")
+#         left_var_name = tree.children[0].children[0]
+#         self.vars.add(left_var_name)
+#
+#     def assign_span(self, tree):
+#         assert_correct_node(tree, "assign_span", 2, "name", "span")
+#         var_name = tree.children[0].children[0]
+#         self.vars.add(var_name)
+#
+#     def assign_var(self, tree):
+#         assert_correct_node(tree, "assign_var", 2, "name", "name")
+#         right_var_name = tree.children[1].children[0]
+#         if right_var_name not in self.vars:
+#             raise NameError("variable " + right_var_name + " is not defined")
+#         left_var_name = tree.children[0].children[0]
+#         self.vars.add(left_var_name)
+#
+#     # TODO after we decide what to do with free variables:
+#     # TODO relation
+#     # TODO rgx_relation
+#     def rgx_relation(self, tree):
+#         assert tree.data == "rgx_relation"
+#         assert tree.children[0].data == "string"
+#         assert tree.children[-1].data == "name"
+#         var_name = tree.children[-1].children[0]
+#         if var_name not in self.vars:
+#             raise NameError("variable " + var_name + " is not defined")
+#     # TODO ie relation
+#     # TODO declare rules? (raise issue)
+#
+#     # TODO maybe use for variable assignment at a different visitor?
+#     # def assign_var(self, name, value):
+#     #     self.vars[name] = value
+#     #     return value
+#
+#     # def var(self, name):
+#     #     return self.vars[name]
+
+class CheckReferencedVariablesInterpreter(Interpreter):
 
     def __init__(self):
         super().__init__()
@@ -139,7 +197,7 @@ class CheckReferencedVariablesVisitor(Visitor_Recursive):
         if var_name not in self.vars:
             raise NameError("variable " + var_name + " is not defined")
     # TODO ie relation
-    # TODO declare rules? (raise issue)
+
 
     # TODO maybe use for variable assignment at a different visitor?
     # def assign_var(self, name, value):
@@ -148,7 +206,6 @@ class CheckReferencedVariablesVisitor(Visitor_Recursive):
 
     # def var(self, name):
     #     return self.vars[name]
-
 
 @v_args(inline=False)
 class RemoveTokensTransformer(Transformer):
@@ -210,7 +267,7 @@ def main():
         # parse_tree = QueryVisitor().visit(parse_tree)
         parse_tree = RemoveIntegerTransformer().transform(parse_tree)
         parse_tree = RemoveTokensTransformer().transform(parse_tree)
-        CheckReferencedVariablesVisitor().visit(parse_tree)
+        CheckReferencedVariablesInterpreter().visit(parse_tree)
         print("===================")
         print(parse_tree.pretty())
         print(parse_tree)
