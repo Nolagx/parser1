@@ -1,9 +1,11 @@
-// TODO some definitions use a regular expression to make a list, for example name_list.
+// TODO some definitions use a regular expression to make a list, for example free_var_name_list.
 // this might cause issues in the semantic check, depending on how lark handles passing the
 // tokens in the regex to a function, might have to change the regular expressions to recursive
 // list definitions.
 
-?start: (_NEWLINE)* (statement (_NEWLINE)+)* (statement)?
+// TODO question marks
+
+start: (_NEWLINE)* (statement (_NEWLINE)+)* (statement)?
 
 ?statement: relation_declaration
           | fact
@@ -13,15 +15,16 @@
           | assign_span
           | assign_var
 
-assign_string: name "=" string -> assign_literal_string
-             | name "=" "read" "(" string ")" -> assign_string_from_file_string_param
-             | name "=" "read" "(" name ")" -> assign_string_from_file_var_param
+assign_string: var_name "=" string -> assign_literal_string
+             | var_name "=" "read" "(" string ")" -> assign_string_from_file_string_param
+             | var_name "=" "read" "(" var_name ")" -> assign_string_from_file_var_param
 
-assign_span: name "=" span
+assign_span: var_name "=" span
 
-assign_var: name "=" name
+assign_var: var_name "=" var_name
 
-relation_declaration: "new" name "(" decl_term ("," decl_term)* ")"
+// TODO whitespace after new needed?
+relation_declaration: "new" relation_name "(" decl_term ("," decl_term)* ")"
 
 ?decl_term: "str" -> decl_string
           | "spn" -> decl_span
@@ -29,26 +32,28 @@ relation_declaration: "new" name "(" decl_term ("," decl_term)* ")"
 rule: rule_head "<-" rule_body_relation ("," rule_body_relation)*
 
 // without "rule" we will get a shift/reduce conflict with relation
-rule_head: name "(" name_list ")"
+rule_head: relation_name "(" free_var_name_list ")"
 
 rule_body_relation: relation -> rule_body_normal_relation
                   | rgx_relation -> rule_body_rgx_relation
                   | ie_relation -> rule_body_ie_relation
 
+// TODO special relation for facts
 fact: relation
 
 query: "?" relation
 
-relation: name "(" term ("," term)* ")"
+relation: relation_name "(" term ("," term)* ")"
 
 ?term: span
      | string
-     | name
+     | var_name
+     | free_var_name
 
 // TODO string means we don't check for a valid regex here, leave it to the regex engine?
-rgx_relation: "extract" "RGX" "<" string ">" "(" name_list ")" "from" name
+rgx_relation: "extract" "RGX" "<" string ">" "(" free_var_name_list ")" "from" var_name
 
-ie_relation: name "<" name ">" "(" name_list ")"
+ie_relation: function_name "<" var_name ">" "(" free_var_name_list ")"
 
 span: "[" int "," int ")"
 
@@ -57,14 +62,18 @@ int: INT -> integer
 string: STRING -> string
        | "(" STRING ((_NEWLINE)* STRING)* ")" -> string
 
-?name_list: name ("," name)*
+?free_var_name_list: free_var_name ("," free_var_name)*
+
+relation_name: LOWER_CASE_NAME
+             | UPPER_CASE_NAME
+
+function_name: LOWER_CASE_NAME
+             | UPPER_CASE_NAME
 
 var_name: LOWER_CASE_NAME
 
 free_var_name : UPPER_CASE_NAME
 
-name: LOWER_CASE_NAME
-    | UPPER_CASE_NAME
 
 LOWER_CASE_NAME: ("_"|LCASE_LETTER) ("_"|LETTER|DIGIT)*
 UPPER_CASE_NAME: UCASE_LETTER ("_"|LETTER|DIGIT)*

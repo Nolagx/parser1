@@ -156,17 +156,17 @@ class CheckReferencedVariablesInterpreter(Interpreter):
         self.vars = set()
 
     def assign_literal_string(self, tree):
-        assert_correct_node(tree, "assign_literal_string", 2, "name", "string")
+        assert_correct_node(tree, "assign_literal_string", 2, "var_name", "string")
         var_name = tree.children[0].children[0]
         self.vars.add(var_name)
 
     def assign_string_from_file_string_param(self, tree):
-        assert_correct_node(tree, "assign_string_from_file_string_param", 2, "name", "string")
+        assert_correct_node(tree, "assign_string_from_file_string_param", 2, "var_name", "string")
         var_name = tree.children[0].children[0]
         self.vars.add(var_name)
 
     def assign_string_from_file_var_param(self, tree):
-        assert_correct_node(tree, "assign_string_from_file_var_param", 2, "name", "name")
+        assert_correct_node(tree, "assign_string_from_file_var_param", 2, "var_name", "var_name")
         right_var_name = tree.children[1].children[0]
         if right_var_name not in self.vars:
             raise NameError("variable " + right_var_name + " is not defined")
@@ -174,12 +174,12 @@ class CheckReferencedVariablesInterpreter(Interpreter):
         self.vars.add(left_var_name)
 
     def assign_span(self, tree):
-        assert_correct_node(tree, "assign_span", 2, "name", "span")
+        assert_correct_node(tree, "assign_span", 2, "var_name", "span")
         var_name = tree.children[0].children[0]
         self.vars.add(var_name)
 
     def assign_var(self, tree):
-        assert_correct_node(tree, "assign_var", 2, "name", "name")
+        assert_correct_node(tree, "assign_var", 2, "var_name", "var_name")
         right_var_name = tree.children[1].children[0]
         if right_var_name not in self.vars:
             raise NameError("variable " + right_var_name + " is not defined")
@@ -192,7 +192,7 @@ class CheckReferencedVariablesInterpreter(Interpreter):
     def rgx_relation(self, tree):
         assert tree.data == "rgx_relation"
         assert tree.children[0].data == "string"
-        assert tree.children[-1].data == "name"
+        assert tree.children[-1].data == "var_name"
         var_name = tree.children[-1].children[0]
         if var_name not in self.vars:
             raise NameError("variable " + var_name + " is not defined")
@@ -215,7 +215,10 @@ class RemoveTokensTransformer(Transformer):
     def INT(self, args):
         return args[0:]
 
-    def NAME(self, args):
+    def LOWER_CASE_NAME(self, args):
+        return args[0:]
+
+    def UPPER_CASE_NAME(self, args):
         return args[0:]
 
     def STRING(self, args):
