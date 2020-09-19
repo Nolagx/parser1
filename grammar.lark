@@ -1,3 +1,5 @@
+// TODO put regex recursive lists inside new rules to make them easier to parse
+
 start: (_NEWLINE)* (statement (_NEWLINE)+)* (statement)?
 
 ?statement: relation_declaration
@@ -31,9 +33,6 @@ rule_body: rule_body_relation ("," rule_body_relation)*
                   | rgx_relation
                   | ie_relation
 
-// TODO special relation for facts
-fact: relation
-
 query: "?" relation
 
 relation: relation_name "(" term ("," term)* ")"
@@ -43,7 +42,13 @@ relation: relation_name "(" term ("," term)* ")"
      | var_name
      | free_var_name
 
-// TODO show free_var_name_list
+fact: relation_name "(" fact_term ("," fact_term)* ")"
+
+?fact_term: span
+          | string
+          | var_name
+
+// TODO show free_var_name_list?
 rgx_relation: "extract" _separator "RGX" "<" string ">" "(" _free_var_name_list ")" "from" _separator var_name
 
 ie_relation: function_name "<" var_name ">" "(" _free_var_name_list ")"
