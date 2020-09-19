@@ -1,10 +1,3 @@
-// TODO some definitions use a regular expression to make a list, for example free_var_name_list.
-// this might cause issues in the semantic check, depending on how lark handles passing the
-// tokens in the regex to a function, might have to change the regular expressions to recursive
-// list definitions.
-
-// TODO question marks
-
 start: (_NEWLINE)* (statement (_NEWLINE)+)* (statement)?
 
 ?statement: relation_declaration
@@ -23,20 +16,20 @@ assign_span: var_name "=" span
 
 assign_var: var_name "=" var_name
 
-// TODO whitespace after new needed?
-relation_declaration: "new" relation_name "(" decl_term ("," decl_term)* ")"
+relation_declaration: "new" _separator relation_name "(" decl_term ("," decl_term)* ")"
 
 ?decl_term: "str" -> decl_string
           | "spn" -> decl_span
 
-rule: rule_head "<-" rule_body_relation ("," rule_body_relation)*
+rule: rule_head "<-" rule_body
 
-// without "rule" we will get a shift/reduce conflict with relation
-rule_head: relation_name "(" free_var_name_list ")"
+rule_head: relation_name "(" _free_var_name_list ")"
 
-rule_body_relation: relation -> rule_body_normal_relation
-                  | rgx_relation -> rule_body_rgx_relation
-                  | ie_relation -> rule_body_ie_relation
+rule_body: rule_body_relation ("," rule_body_relation)*
+
+?rule_body_relation: relation
+                  | rgx_relation
+                  | ie_relation
 
 // TODO special relation for facts
 fact: relation
@@ -50,19 +43,21 @@ relation: relation_name "(" term ("," term)* ")"
      | var_name
      | free_var_name
 
-// TODO string means we don't check for a valid regex here, leave it to the regex engine?
-rgx_relation: "extract" "RGX" "<" string ">" "(" free_var_name_list ")" "from" var_name
+// TODO show free_var_name_list
+rgx_relation: "extract" _separator "RGX" "<" string ">" "(" _free_var_name_list ")" "from" _separator var_name
 
-ie_relation: function_name "<" var_name ">" "(" free_var_name_list ")"
+ie_relation: function_name "<" var_name ">" "(" _free_var_name_list ")"
 
 span: "[" int "," int ")"
+
+_separator: (_WS_INLINE | _NEWLINE)+
 
 int: INT -> integer
 
 string: STRING -> string
        | "(" STRING ((_NEWLINE)* STRING)* ")" -> string
 
-?free_var_name_list: free_var_name ("," free_var_name)*
+_free_var_name_list: free_var_name ("," free_var_name)*
 
 relation_name: LOWER_CASE_NAME
              | UPPER_CASE_NAME
@@ -87,8 +82,8 @@ _COMMENT: "#" /[^\n]*/
 %import common.UCASE_LETTER
 %import common.LETTER
 %import common.DIGIT
-%import common.WS_INLINE
-%ignore WS_INLINE
+%import common.WS_INLINE -> _WS_INLINE
+%ignore _WS_INLINE
 %import common.ESCAPED_STRING -> STRING
 %import common.INT -> INT
 %import common.NEWLINE -> _NEWLINE

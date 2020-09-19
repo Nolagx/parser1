@@ -213,7 +213,7 @@ class RemoveTokensTransformer(Transformer):
         super().__init__(visit_tokens=True)
 
     def INT(self, args):
-        return args[0:]
+        return int(args[0:])
 
     def LOWER_CASE_NAME(self, args):
         return args[0:]
@@ -268,12 +268,13 @@ def main():
         # parse_tree = RelationTransformer().transform(parse_tree)
         # parse_tree = FactVisitor().visit(parse_tree)
         # parse_tree = QueryVisitor().visit(parse_tree)
-        parse_tree = RemoveIntegerTransformer().transform(parse_tree)
+        # parse_tree = RemoveIntegerTransformer().transform(parse_tree)
         parse_tree = RemoveTokensTransformer().transform(parse_tree)
         CheckReferencedVariablesInterpreter().visit(parse_tree)
         print("===================")
         print(parse_tree.pretty())
-        print(parse_tree)
+        for child in parse_tree.children:
+            print(child)
 
         # non_empty_lines = (line for line in test_input.splitlines() if len(line))
 
