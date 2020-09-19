@@ -189,8 +189,9 @@ class CheckReferencedVariablesInterpreter(Interpreter):
     # TODO after we decide what to do with free variables:
     # TODO relation
     # TODO rgx_relation
-    def rgx_relation(self, tree):
-        assert tree.data == "rgx_relation"
+    def rgx_ie_relation(self, tree):
+        # TODO use the assert function after making a list rule
+        assert tree.data == "rgx_ie_relation"
         assert tree.children[0].data == "string"
         assert tree.children[-1].data == "var_name"
         var_name = tree.children[-1].children[0]

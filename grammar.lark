@@ -30,8 +30,7 @@ rule_head: relation_name "(" _free_var_name_list ")"
 rule_body: rule_body_relation ("," rule_body_relation)*
 
 ?rule_body_relation: relation
-                  | rgx_relation
-                  | ie_relation
+                   | ie_relation
 
 query: "?" relation
 
@@ -49,9 +48,8 @@ fact: relation_name "(" fact_term ("," fact_term)* ")"
           | var_name
 
 // TODO show free_var_name_list?
-rgx_relation: "extract" _separator "RGX" "<" string ">" "(" _free_var_name_list ")" "from" _separator var_name
-
-ie_relation: function_name "<" var_name ">" "(" _free_var_name_list ")"
+ie_relation: function_name "<" var_name ">" "(" _free_var_name_list ")" -> func_ie_relation
+           | "extract" _separator "RGX" "<" string ">" "(" _free_var_name_list ")" "from" _separator var_name -> rgx_ie_relation
 
 span: "[" int "," int ")"
 
