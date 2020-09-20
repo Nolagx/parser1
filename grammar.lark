@@ -18,7 +18,9 @@ assign_span: var_name "=" span
 
 assign_var: var_name "=" var_name
 
-relation_declaration: "new" _separator relation_name "(" decl_term ("," decl_term)* ")"
+relation_declaration: "new" _separator relation_name decl_term_list
+
+decl_term_list: "(" decl_term ("," decl_term)* ")"
 
 ?decl_term: "str" -> decl_string
           | "spn" -> decl_span
@@ -34,14 +36,18 @@ rule_body: rule_body_relation ("," rule_body_relation)*
 
 query: "?" relation
 
-relation: relation_name "(" term ("," term)* ")"
+relation: relation_name term_list
+
+term_list: "(" term ("," term)* ")"
 
 ?term: span
      | string
      | var_name
      | free_var_name
 
-fact: relation_name "(" fact_term ("," fact_term)* ")"
+fact: relation_name fact_term_list
+
+fact_term_list: "(" fact_term ("," fact_term)* ")"
 
 ?fact_term: span
           | string
