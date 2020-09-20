@@ -1,5 +1,3 @@
-// TODO put regex recursive lists inside new rules to make them easier to parse
-
 start: (_NEWLINE)* (statement (_NEWLINE)+)* (statement)?
 
 ?statement: relation_declaration
@@ -18,16 +16,16 @@ assign_span: var_name "=" span
 
 assign_var: var_name "=" var_name
 
-relation_declaration: "new" _separator relation_name decl_term_list
+relation_declaration: "new" _separator relation_name "(" decl_term_list ")"
 
-decl_term_list: "(" decl_term ("," decl_term)* ")"
+decl_term_list: decl_term ("," decl_term)*
 
 ?decl_term: "str" -> decl_string
           | "spn" -> decl_span
 
 rule: rule_head "<-" rule_body
 
-rule_head: relation_name "(" _free_var_name_list ")"
+rule_head: relation_name "(" free_var_name_list ")"
 
 rule_body: rule_body_relation ("," rule_body_relation)*
 
@@ -36,26 +34,25 @@ rule_body: rule_body_relation ("," rule_body_relation)*
 
 query: "?" relation
 
-relation: relation_name term_list
+relation: relation_name "(" term_list ")"
 
-term_list: "(" term ("," term)* ")"
+term_list: term ("," term)*
 
 ?term: span
      | string
      | var_name
      | free_var_name
 
-fact: relation_name fact_term_list
+fact: relation_name "(" fact_term_list ")"
 
-fact_term_list: "(" fact_term ("," fact_term)* ")"
+fact_term_list: fact_term ("," fact_term)*
 
 ?fact_term: span
           | string
           | var_name
 
-// TODO show free_var_name_list?
-ie_relation: function_name "<" var_name ">" "(" _free_var_name_list ")" -> func_ie_relation
-           | "extract" _separator "RGX" "<" string ">" "(" _free_var_name_list ")" "from" _separator var_name -> rgx_ie_relation
+ie_relation: function_name "<" var_name ">" "(" free_var_name_list ")" -> func_ie_relation
+           | "extract" _separator "RGX" "<" string ">" "(" free_var_name_list ")" "from" _separator var_name -> rgx_ie_relation
 
 span: "[" int "," int ")"
 
@@ -63,11 +60,10 @@ _separator: (_WS_INLINE | _LINE_OVERFLOW_ESCAPE)+
 
 int: INT -> integer
 
-// TODO visit all string_lists and turn them into string
 string: STRING -> string
        | STRING ((_LINE_OVERFLOW_ESCAPE)* STRING)+  -> multiline_string
 
-_free_var_name_list: free_var_name ("," free_var_name)*
+free_var_name_list: free_var_name ("," free_var_name)*
 
 relation_name: LOWER_CASE_NAME
              | UPPER_CASE_NAME
@@ -79,7 +75,6 @@ var_name: LOWER_CASE_NAME
 
 free_var_name : UPPER_CASE_NAME
 
-
 LOWER_CASE_NAME: ("_"|LCASE_LETTER) ("_"|LETTER|DIGIT)*
 UPPER_CASE_NAME: UCASE_LETTER ("_"|LETTER|DIGIT)*
 
@@ -87,14 +82,12 @@ _COMMENT: "#" /[^\n]*/
 
 _LINE_OVERFLOW_ESCAPE: "\\" _NEWLINE
 
-// CNAME: ("_"|LETTER) ("_"|LETTER|DIGIT)*
-// common definitions: https://github.com/lark-parser/lark/blob/master/lark/grammars/common.lark
-
 _NEWLINE: CR? LF
 CR : /\r/
 LF : /\n/
 
 
+// common definitions can be found at: https://github.com/lark-parser/lark/blob/master/lark/grammars/common.lark
 %import common.LCASE_LETTER
 %import common.UCASE_LETTER
 %import common.LETTER
