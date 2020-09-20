@@ -59,7 +59,7 @@ ie_relation: function_name "<" var_name ">" "(" _free_var_name_list ")" -> func_
 
 span: "[" int "," int ")"
 
-_separator: (_WS_INLINE | _NEWLINE)+
+_separator: (_WS_INLINE | _LINE_OVERFLOW_ESCAPE)+
 
 int: INT -> integer
 
