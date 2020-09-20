@@ -32,6 +32,9 @@ rule_body: rule_body_relation ("," rule_body_relation)*
 ?rule_body_relation: relation
                    | ie_relation
 
+ie_relation: function_name "<" term_list ">" "(" term_list ")" -> func_ie_relation
+           | "extract" _separator "RGX" "<" term_list ">" "(" term_list ")" "from" _separator var_name -> rgx_ie_relation
+
 query: "?" relation
 
 relation: relation_name "(" term_list ")"
@@ -50,9 +53,6 @@ fact_term_list: fact_term ("," fact_term)*
 ?fact_term: span
           | string
           | var_name
-
-ie_relation: function_name "<" var_name ">" "(" free_var_name_list ")" -> func_ie_relation
-           | "extract" _separator "RGX" "<" string ">" "(" free_var_name_list ")" "from" _separator var_name -> rgx_ie_relation
 
 span: "[" int "," int ")"
 

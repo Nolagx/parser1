@@ -190,10 +190,7 @@ class CheckReferencedVariablesInterpreter(Interpreter):
     # TODO relation
     # TODO rgx_relation
     def rgx_ie_relation(self, tree):
-        # TODO use the assert function after making a list rule
-        assert tree.data == "rgx_ie_relation"
-        assert tree.children[0].data == "string"
-        assert tree.children[-1].data == "var_name"
+        assert_correct_node(tree, "rgx_ie_relation", 3, "term_list", "term_list", "var_name")
         var_name = tree.children[-1].children[0]
         if var_name not in self.vars:
             raise NameError("variable " + var_name + " is not defined")
