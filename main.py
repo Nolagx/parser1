@@ -191,6 +191,10 @@ class CheckReferencedVariablesInterpreter(Interpreter):
         assert_correct_node(tree, "assign_span", 2, "var_name", "span")
         self.__add_var_name_to_vars(tree.children[0])
 
+    def assign_int(self, tree):
+        assert_correct_node(tree, "assign_int", 2, "var_name", "integer")
+        self.__add_var_name_to_vars(tree.children[0])
+
     def assign_var(self, tree):
         assert_correct_node(tree, "assign_var", 2, "var_name", "var_name")
         self.__check_defined_variable(tree.children[1])
@@ -296,7 +300,7 @@ def main():
         # parser = Lark(grammar, parser='lalr', transformer=CalculateTree2())
         parser = Lark(grammar, parser='earley', debug=False)
 
-        test_input = open("test_input2").read()
+        test_input = open("test_input").read()
         parse_tree = parser.parse(test_input)
         # parse_tree = StringTransformer().transform(parse_tree)
         # parse_tree = RelationTransformer().transform(parse_tree)
