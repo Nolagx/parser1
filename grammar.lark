@@ -65,7 +65,7 @@ int: INT -> integer
 
 // TODO visit all string_lists and turn them into string
 string: STRING -> string
-       | STRING ((_LINE_OVERFLOW_ESCAPE)* STRING)+  -> string
+       | STRING ((_LINE_OVERFLOW_ESCAPE)* STRING)+  -> multiline_string
 
 _free_var_name_list: free_var_name ("," free_var_name)*
 
