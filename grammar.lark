@@ -31,7 +31,9 @@ rule: rule_head "<-" rule_body
 
 rule_head: relation_name "(" free_var_name_list ")"
 
-rule_body: rule_body_relation ("," rule_body_relation)*
+rule_body: rule_body_relation_list
+
+rule_body_relation_list: rule_body_relation ("," rule_body_relation)*
 
 ?rule_body_relation: relation
                    | ie_relation

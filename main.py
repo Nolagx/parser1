@@ -3,6 +3,7 @@ from lark.visitors import Interpreter, Visitor_Recursive
 from pyDatalog import pyDatalog
 
 NODES_OF_LIST_WITH_VAR_NAMES = {"term_list", "fact_term_list"}
+NODES_OF_LIST_WITH_RELATION_NAMES = {"rule_body_relation_list"}
 
 
 @v_args(inline=True)
@@ -93,64 +94,6 @@ class FactVisitor(Visitor):
         pyDatalog.assert_fact(relation.name, *relation.terms)
 
 
-# class CheckReferencedVariablesVisitor(Visitor_Recursive):
-#
-#     def __init__(self):
-#         super().__init__()
-#         self.vars = set()
-#
-#     def assign_literal_string(self, tree):
-#         assert_correct_node(tree, "assign_literal_string", 2, "name", "string")
-#         var_name = tree.children[0].children[0]
-#         self.vars.add(var_name)
-#
-#     def assign_string_from_file_string_param(self, tree):
-#         assert_correct_node(tree, "assign_string_from_file_string_param", 2, "name", "string")
-#         var_name = tree.children[0].children[0]
-#         self.vars.add(var_name)
-#
-#     def assign_string_from_file_var_param(self, tree):
-#         assert_correct_node(tree, "assign_string_from_file_var_param", 2, "name", "name")
-#         right_var_name = tree.children[1].children[0]
-#         if right_var_name not in self.vars:
-#             raise NameError("variable " + right_var_name + " is not defined")
-#         left_var_name = tree.children[0].children[0]
-#         self.vars.add(left_var_name)
-#
-#     def assign_span(self, tree):
-#         assert_correct_node(tree, "assign_span", 2, "name", "span")
-#         var_name = tree.children[0].children[0]
-#         self.vars.add(var_name)
-#
-#     def assign_var(self, tree):
-#         assert_correct_node(tree, "assign_var", 2, "name", "name")
-#         right_var_name = tree.children[1].children[0]
-#         if right_var_name not in self.vars:
-#             raise NameError("variable " + right_var_name + " is not defined")
-#         left_var_name = tree.children[0].children[0]
-#         self.vars.add(left_var_name)
-#
-#     # TODO after we decide what to do with free variables:
-#     # TODO relation
-#     # TODO rgx_relation
-#     def rgx_relation(self, tree):
-#         assert tree.data == "rgx_relation"
-#         assert tree.children[0].data == "string"
-#         assert tree.children[-1].data == "name"
-#         var_name = tree.children[-1].children[0]
-#         if var_name not in self.vars:
-#             raise NameError("variable " + var_name + " is not defined")
-#     # TODO ie relation
-#     # TODO declare rules? (raise issue)
-#
-#     # TODO maybe use for variable assignment at a different visitor?
-#     # def assign_var(self, name, value):
-#     #     self.vars[name] = value
-#     #     return value
-#
-#     # def var(self, name):
-#     #     return self.vars[name]
-
 class CheckReferencedVariablesInterpreter(Interpreter):
 
     def __init__(self):
@@ -227,6 +170,64 @@ class CheckReferencedVariablesInterpreter(Interpreter):
 
     # def var(self, name):
     #     return self.vars[name]
+
+
+class CheckReferencedRelationsInterpreter(Interpreter):
+
+    def __init__(self):
+        super().__init__()
+        self.relations = set()
+
+    def __add_relation_name_to_relations(self, relation_name_node):
+        assert_correct_node(relation_name_node, "relation_name", 1)
+        relation_name = relation_name_node.children[0]
+        self.relations.add(relation_name)
+
+    def __check_if_relation_not_defined(self, relation_name_node):
+        assert_correct_node(relation_name_node, "relation_name", 1)
+        relation_name = relation_name_node.children[0]
+        if relation_name not in self.relations:
+            raise NameError("relation " + relation_name + " is not defined")
+
+    def __check_if_relation_already_defined(self, relation_name_node):
+        assert_correct_node(relation_name_node, "relation_name", 1)
+        relation_name = relation_name_node.children[0]
+        if relation_name in self.relations:
+            raise NameError("relation " + relation_name + " is already defined")
+
+    @staticmethod
+    def __get_relation_name_node(tree):
+        if tree.data == "relation":
+            assert_correct_node(tree, "relation", 2, "relation_name", "term_list")
+            return tree.children[0]
+
+    def __check_if_list_relations_not_defined(self, list_node):
+        assert list_node.data in NODES_OF_LIST_WITH_RELATION_NAMES
+        for child in list_node.children:
+            if child.data == "relation":
+                self.__check_if_relation_not_defined(self.__get_relation_name_node(child))
+
+    def relation_declaration(self, tree):
+        assert_correct_node(tree, "relation_declaration", 2, "relation_name", "decl_term_list")
+        self.__check_if_relation_already_defined(tree.children[0])
+        self.__add_relation_name_to_relations(tree.children[0])
+
+    def query(self, tree):
+        assert_correct_node(tree, "query", 1, "relation")
+        self.__check_if_relation_not_defined(self.__get_relation_name_node(tree.children[0]))
+
+    def fact(self, tree):
+        assert_correct_node(tree, "fact", 2, "relation_name", "fact_term_list")
+        self.__check_if_relation_not_defined(tree.children[0])
+
+    def rule(self, tree):
+        assert_correct_node(tree, "rule", 2, "rule_head", "rule_body")
+        assert_correct_node(tree.children[1], "rule_body", 1, "rule_body_relation_list")
+        self.__check_if_list_relations_not_defined(tree.children[1].children[0])
+        assert_correct_node(tree.children[0], "rule_head", 2, "relation_name", "free_var_name_list")
+        # TODO allow adding rules to the same relation (currently allowed)? under what conditions?
+        self.__add_relation_name_to_relations(tree.children[0].children[0])
+
 
 
 class MultilineStringToStringVisitor(Visitor_Recursive):
@@ -311,6 +312,7 @@ def main():
         parse_tree = RemoveTokensTransformer().transform(parse_tree)
         parse_tree = MultilineStringToStringVisitor().visit(parse_tree)
         CheckReferencedVariablesInterpreter().visit(parse_tree)
+        CheckReferencedRelationsInterpreter().visit(parse_tree)
         print("===================")
         print(parse_tree.pretty())
         for child in parse_tree.children:
