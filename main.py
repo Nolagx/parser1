@@ -209,8 +209,9 @@ class CheckReferencedVariablesInterpreter(Interpreter):
         self.__check_defined_variables_in_list(tree.children[1])
 
     def rgx_ie_relation(self, tree):
-        assert_correct_node(tree, "rgx_ie_relation", 3, "term_list", "term_list", "var_name")
-        self.__check_defined_variables_in_list(tree.children[0])
+        assert_correct_node(tree, "rgx_ie_relation", 3, "rgx_relation_arg", "term_list", "var_name")
+        if tree.children[0].children[0].data == "var_name":
+            self.__check_defined_variable(tree.children[0].children[0])
         self.__check_defined_variables_in_list(tree.children[1])
         self.__check_defined_variable(tree.children[2])
 
@@ -300,7 +301,7 @@ def main():
         # parser = Lark(grammar, parser='lalr', transformer=CalculateTree2())
         parser = Lark(grammar, parser='earley', debug=False)
 
-        test_input = open("test_input").read()
+        test_input = open("test_input2").read()
         parse_tree = parser.parse(test_input)
         # parse_tree = StringTransformer().transform(parse_tree)
         # parse_tree = RelationTransformer().transform(parse_tree)
