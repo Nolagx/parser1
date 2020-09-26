@@ -1,6 +1,7 @@
 from lark import Lark, Transformer, v_args, Visitor
 from lark.visitors import Interpreter, Visitor_Recursive
 from pyDatalog import pyDatalog
+import exceptions
 
 NODES_OF_LIST_WITH_VAR_NAMES = {"term_list", "fact_term_list"}
 NODES_OF_LIST_WITH_RELATION_NAMES = {"rule_body_relation_list"}
@@ -229,6 +230,49 @@ class CheckReferencedRelationsInterpreter(Interpreter):
         self.__add_relation_name_to_relations(tree.children[0].children[0])
 
 
+class CheckRuleSafetyInterpreter(Interpreter):
+
+    def __init__(self):
+        super().__init__()
+
+    def rule(self, tree):
+        assert_correct_node(tree, "rule", 2, "rule_head", "rule_body")
+        assert_correct_node(tree.children[0], "rule_head", 2, "relation_name", "free_var_name_list")
+        assert_correct_node(tree.children[1], "rule_body", 1, "rule_body_relation_list")
+        rule_head_vars_list_node = tree.children[0].children[1]
+        rule_body_relation_nodes = tree.children[1].children[0]
+        assert_correct_node(rule_head_vars_list_node, "free_var_name_list")
+        assert_correct_node(rule_body_relation_nodes, "rule_body_relation_list")
+        # get the free variables in the rule head
+        rule_head_free_vars = set()
+        for free_var_node in rule_head_vars_list_node.children:
+            assert_correct_node(free_var_node, "free_var_name", 1)
+            rule_head_free_vars.add(free_var_node.children[0])
+        # get the free variables in the rule body
+        rule_body_free_vars = set()
+        for relation_node in rule_body_relation_nodes.children:
+            # first we must find the terms list depending on the relation we're dealing with
+            if relation_node.data == "relation":
+                assert_correct_node(relation_node, "relation", 2, "relation_name", "term_list")
+                term_list_node = relation_node.children[1]
+            elif relation_node.data == "func_ie_relation":
+                assert_correct_node(relation_node, "func_ie_relation", 3, "function_name", "term_list", "term_list")
+                term_list_node = relation_node.children[2]  # get only the output parameters
+            else:
+                assert_correct_node(relation_node, "rgx_ie_relation", 3, "rgx_relation_arg", "term_list", "var_name")
+                term_list_node = relation_node.children[1]
+            assert_correct_node(term_list_node, "term_list")
+            # get all the free variables that appear in the relation's output
+            for term_node in term_list_node.children:
+                if term_node.data == "free_var_name":
+                    assert_correct_node(term_node, "free_var_name", 1)
+                    rule_body_free_vars.add(term_node.children[0])
+        # finally, make sure that every free var in the rule head appears at least once in the rule body
+        for rule_head_free_var in rule_head_free_vars:
+            if rule_head_free_var not in rule_body_free_vars:
+                raise exceptions.RuleNotSafeError(
+                    "free variable " + rule_head_free_var + " appears in rule head but not in rule body")
+
 
 class MultilineStringToStringVisitor(Visitor_Recursive):
 
@@ -313,6 +357,7 @@ def main():
         parse_tree = MultilineStringToStringVisitor().visit(parse_tree)
         CheckReferencedVariablesInterpreter().visit(parse_tree)
         CheckReferencedRelationsInterpreter().visit(parse_tree)
+        CheckRuleSafetyInterpreter().visit(parse_tree)
         print("===================")
         print(parse_tree.pretty())
         for child in parse_tree.children:
