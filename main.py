@@ -106,7 +106,7 @@ class CheckReferencedVariablesInterpreter(Interpreter):
         var_name = var_name_node.children[0]
         self.vars.add(var_name)
 
-    def __check_defined_variable(self, var_name_node):
+    def __check_if_var_not_defined(self, var_name_node):
         assert_correct_node(var_name_node, "var_name", 1)
         var_name = var_name_node.children[0]
         if var_name not in self.vars:
@@ -116,7 +116,7 @@ class CheckReferencedVariablesInterpreter(Interpreter):
         assert tree.data in NODES_OF_LIST_WITH_VAR_NAMES
         for child in tree.children:
             if child.data == "var_name":
-                self.__check_defined_variable(child)
+                self.__check_if_var_not_defined(child)
 
     def assign_literal_string(self, tree):
         assert_correct_node(tree, "assign_literal_string", 2, "var_name", "string")
@@ -128,7 +128,7 @@ class CheckReferencedVariablesInterpreter(Interpreter):
 
     def assign_string_from_file_var_param(self, tree):
         assert_correct_node(tree, "assign_string_from_file_var_param", 2, "var_name", "var_name")
-        self.__check_defined_variable(tree.children[1])
+        self.__check_if_var_not_defined(tree.children[1])
         self.__add_var_name_to_vars(tree.children[0])
 
     def assign_span(self, tree):
@@ -141,7 +141,7 @@ class CheckReferencedVariablesInterpreter(Interpreter):
 
     def assign_var(self, tree):
         assert_correct_node(tree, "assign_var", 2, "var_name", "var_name")
-        self.__check_defined_variable(tree.children[1])
+        self.__check_if_var_not_defined(tree.children[1])
         self.__add_var_name_to_vars(tree.children[0])
 
     def relation(self, tree):
@@ -155,9 +155,9 @@ class CheckReferencedVariablesInterpreter(Interpreter):
     def rgx_ie_relation(self, tree):
         assert_correct_node(tree, "rgx_ie_relation", 3, "rgx_relation_arg", "term_list", "var_name")
         if tree.children[0].children[0].data == "var_name":
-            self.__check_defined_variable(tree.children[0].children[0])
+            self.__check_if_var_not_defined(tree.children[0].children[0])
         self.__check_defined_variables_in_list(tree.children[1])
-        self.__check_defined_variable(tree.children[2])
+        self.__check_if_var_not_defined(tree.children[2])
 
     def func_ie_relation(self, tree):
         assert_correct_node(tree, "func_ie_relation", 3, "function_name", "term_list", "term_list")
