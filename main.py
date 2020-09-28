@@ -1,10 +1,17 @@
 from lark import Lark, Transformer, v_args, Visitor, Tree
 from lark.visitors import Interpreter, Visitor_Recursive
 from pyDatalog import pyDatalog
+from enum import Enum
 import exceptions
 
 NODES_OF_LIST_WITH_VAR_NAMES = {"term_list", "fact_term_list"}
 NODES_OF_LIST_WITH_RELATION_NAMES = {"rule_body_relation_list"}
+
+
+class VarTypes(Enum):
+    STRING = 0
+    SPAN = 1
+    INT = 2
 
 
 class Relation:
@@ -195,12 +202,39 @@ class CheckReferencedRelationsInterpreter(Interpreter):
         self.__add_relation_name_to_relations(tree.children[0].children[0])
 
 
-class CheckRuleSafetyInterpreter(Interpreter):
+class CheckRuleSafetyVisitor(Visitor_Recursive):
 
     def __init__(self):
         super().__init__()
 
     def rule(self, tree):
+        """
+        This function checks that a rule is safe. For a rule to be safe, two conditions must apply:
+
+        1. Every free variable in the head occurs at least once in the body as an output of a relation.
+
+        examples:
+        a. "parent(X,Y) <- son(X)" is not a safe rule because the free variable Y only appears in the rule head.
+        b. "parent(X,Z) <- parent(X,Y), parent(Y,Z)" is a safe rule as both X,Z that appear in the rule head, also
+            appear in the rule body.
+        c. "happy(X) <- is_happy<X>(Y)" is not a safe rule as X does not appear as an output of a relation.
+
+        2. Every free variable is bound.
+        A bound free variable is a free variable that has a constraint that imposes a
+        limit on the amount of values it can take.
+
+        In order to check that every free variable is bound, we will check that every relation in the rule body
+        is a safe relation, meaning:
+        a. A safe relation is one where its input relation is safe,
+        meaning all its input's free variables are bound.
+        b. A bound variable is one that exists in the output of a safe relation.
+
+        examples:
+        a. "rel2(X,Y) <- rel1(X,Z),ie1<X>(Y)" is safe as the only input free variable, X, exists in the output of
+        the safe relation rel1(X,Z).
+        b. " rel2(Y) <- ie1<Z>(Y)" is not safe as the input free variable Z does not exist in the output of any
+        safe relation.
+        """
         assert_correct_node(tree, "rule", 2, "rule_head", "rule_body")
         assert_correct_node(tree.children[0], "rule_head", 2, "relation_name", "free_var_name_list")
         assert_correct_node(tree.children[1], "rule_body", 1, "rule_body_relation_list")
@@ -208,6 +242,7 @@ class CheckRuleSafetyInterpreter(Interpreter):
         rule_body_relation_nodes = tree.children[1].children[0]
         assert_correct_node(rule_head_vars_list_node, "free_var_name_list")
         assert_correct_node(rule_body_relation_nodes, "rule_body_relation_list")
+        # check that every free variable in the head occurs at least once in the body as an output of a relation.
         # get the free variables in the rule head
         rule_head_free_vars = set()
         for free_var_node in rule_head_vars_list_node.children:
@@ -239,6 +274,110 @@ class CheckRuleSafetyInterpreter(Interpreter):
             if rule_head_free_var not in rule_body_free_vars:
                 raise exceptions.RuleNotSafeError(
                     "free variable " + rule_head_free_var + " appears in rule head but not in rule body")
+        # check that every free variable is bound
+
+
+class TypeCheckingInterpreter(Interpreter):
+
+    def __init__(self):
+        super().__init__()
+        self.var_name_to_type = dict()
+        self.relation_name_to_schema = dict()
+
+    def __add_var_type(self, var_name_node, var_type: VarTypes):
+        assert_correct_node(var_name_node, "var_name", 1)
+        var_name = var_name_node.children[0]
+        self.var_name_to_type[var_name] = var_type
+
+    def __get_var_type(self, var_name_node):
+        assert_correct_node(var_name_node, "var_name", 1)
+        var_name = var_name_node.children[0]
+        assert var_name in self.var_name_to_type
+        return self.var_name_to_type[var_name]
+
+    def __add_relation_schema(self, relation_name_node, relation_schema):
+        assert_correct_node(relation_name_node, "relation_name", 1)
+        relation_name = relation_name_node.children[0]
+        assert relation_name not in self.relation_name_to_schema
+        self.relation_name_to_schema[relation_name] = relation_schema
+
+    def __get_relation_schema(self, relation_name_node):
+        assert_correct_node(relation_name_node, "relation_name", 1)
+        relation_name = relation_name_node.children[0]
+        assert relation_name in self.relation_name_to_schema
+        return self.relation_name_to_schema[relation_name]
+
+    def __get_term_type(self, term_node):
+        term_type = term_node.data
+        if term_type == "string":
+            return VarTypes.STRING
+        elif term_type == "span":
+            return VarTypes.SPAN
+        elif term_type == "int":
+            return VarTypes.INT
+        elif term_type == "var_name":
+            assert_correct_node(term_node, "var_name", 1)
+            return self.__get_var_type(self.var_name_to_type[term_type])
+        elif term_type == "free_var_name":
+            # Can't determine type from the term node alone.
+            # leave it to the caller to figure out what the free variable type is.
+            return None
+        else:
+            assert 0
+
+    def __get_term_sequence_types(self, term_list_node, free_var_mapping=None, relation_name_node=None):
+        """
+        :param term_list_node: list of terms (e.g. terms used when declaring a fact)
+        :param free_var_mapping: when encountering a free variable, get it's type
+        :param relation_name_node:
+        :return:
+        """
+        pass
+
+    def assign_literal_string(self, tree):
+        assert_correct_node(tree, "assign_literal_string", 2, "var_name", "string")
+        self.__add_var_type(tree.children[0], VarTypes.STRING)
+
+    def assign_string_from_file_string_param(self, tree):
+        assert_correct_node(tree, "assign_string_from_file_string_param", 2, "var_name", "string")
+        self.__add_var_type(tree.children[0], VarTypes.STRING)
+
+    def assign_string_from_file_var_param(self, tree):
+        assert_correct_node(tree, "assign_string_from_file_var_param", 2, "var_name", "var_name")
+        self.__add_var_type(tree.children[0], VarTypes.STRING)
+
+    def assign_span(self, tree):
+        assert_correct_node(tree, "assign_span", 2, "var_name", "span")
+        self.__add_var_type(tree.children[0], VarTypes.SPAN)
+
+    def assign_int(self, tree):
+        assert_correct_node(tree, "assign_int", 2, "var_name", "integer")
+        self.__add_var_type(tree.children[0], VarTypes.INT)
+
+    def assign_var(self, tree):
+        assert_correct_node(tree, "assign_var", 2, "var_name", "var_name")
+        self.__add_var_type(tree.children[0], self.__get_var_type(tree.children[1]))
+
+    def relation_declaration(self, tree):
+        assert_correct_node(tree, "relation_declaration", 2, "relation_name", "decl_term_list")
+        decl_term_list_node = tree.children[1]
+        assert_correct_node(tree, "decl_term_list")
+        declared_schema = []
+        for term_node in decl_term_list_node.children:
+            if term_node.data == "decl_string":
+                declared_schema.append(VarTypes.STRING)
+            elif term_node.data == "decl_span":
+                declared_schema.append(VarTypes.SPAN)
+            elif term_node.data == "decl_int":
+                declared_schema.append(VarTypes.INT)
+            else:
+                assert 0
+        self.__add_relation_schema(tree.children[0], declared_schema)
+
+    def relation(self, tree):
+        assert_correct_node(tree, "relation", 2, "relation_name", "term_list")
+        relation_name_node = tree.children[0]
+        relation_schema = self.__get_relation_schema(relation_name_node)
 
 
 class MultilineStringToStringVisitor(Visitor_Recursive):
@@ -256,6 +395,7 @@ class MultilineStringToStringVisitor(Visitor_Recursive):
         tree.children = [result]
 
 
+# TODO do this with visitor instead (more efficient)
 @v_args(inline=False)
 class RemoveTokensTransformer(Transformer):
     def __init__(self):
@@ -324,7 +464,7 @@ def main():
         parse_tree = MultilineStringToStringVisitor().visit(parse_tree)
         CheckReferencedVariablesInterpreter().visit(parse_tree)
         CheckReferencedRelationsInterpreter().visit(parse_tree)
-        CheckRuleSafetyInterpreter().visit(parse_tree)
+        CheckRuleSafetyVisitor().visit(parse_tree)
         parse_tree = PyDatalogRepresentationVisitor().visit(parse_tree)
         print("===================")
         print(parse_tree.pretty())
