@@ -1,4 +1,4 @@
-from lark import Lark, Transformer, v_args, Visitor
+from lark import Lark, Transformer, v_args, Visitor, Tree
 from lark.visitors import Interpreter, Visitor_Recursive
 from pyDatalog import pyDatalog
 import exceptions
@@ -7,65 +7,12 @@ NODES_OF_LIST_WITH_VAR_NAMES = {"term_list", "fact_term_list"}
 NODES_OF_LIST_WITH_RELATION_NAMES = {"rule_body_relation_list"}
 
 
-@v_args(inline=True)
-class CalculateTree(Transformer):
-    # noinspection PyUnresolvedReferences
-    from operator import add, sub, mul, truediv as div, neg
-    number = float
-
-    def __init__(self):
-        super().__init__()
-        self.vars = {}
-
-    def assign_var(self, name, value):
-        self.vars[name] = value
-        return value
-
-    def var(self, name):
-        return self.vars[name]
-
-
-@v_args(inline=True)
-class CalculateTree(Transformer):
-    # noinspection PyUnresolvedReferences
-    from operator import add, sub, mul, truediv as div, neg
-    number = float
-
-    def __init__(self):
-        super().__init__()
-        self.vars = {}
-
-    def assign_var(self, name, value):
-        self.vars[name] = value
-        return value
-
-    def var(self, name):
-        return self.vars[name]
-
-
-@v_args(inline=True)
-class RemoveIntegerTransformer(Transformer):
-    # get rid of "integer" in the tree
-    integer = int
-
-
-@v_args(inline=False)
-class StringTransformer(Transformer):
-
-    def string(self, string_list):
-        result = ""
-        for token in string_list:
-            string = token[1:-1]
-            result += string
-        return result
-
-
 class Relation:
     def __init__(self, name, terms):
         self.name = name
         self.terms = terms
 
-    def get_string_format(self):
+    def get_string_representation(self):
         ret = self.name + "("
         for idx, term in enumerate(self.terms):
             ret += term
@@ -75,7 +22,19 @@ class Relation:
         return ret
 
     def __repr__(self):
-        return self.get_string_format()
+        return self.get_string_representation()
+
+
+class Span:
+    def __init__(self, start, stop):
+        self.start = start
+        self.stop = stop
+
+    def get_string_representation(self):
+        return "[" + str(self.start) + ", " + str(self.stop) + ")"
+
+    def __repr__(self):
+        return self.get_string_representation()
 
 
 @v_args(inline=False)
@@ -84,7 +43,14 @@ class RelationTransformer(Transformer):
     def relation(self, args):
         name = args[0]
         terms = args[1:]
-        return Relation(name, terms)
+        # return Relation(name, terms)
+        return Tree("relation", ["test"])
+
+
+class PyDatalogRepresentationVisitor(Visitor_Recursive):
+
+    def relation(self, tree):
+        pass
 
 
 class FactVisitor(Visitor):
@@ -112,7 +78,7 @@ class CheckReferencedVariablesInterpreter(Interpreter):
         if var_name not in self.vars:
             raise NameError("variable " + var_name + " is not defined")
 
-    def __check_defined_variables_in_list(self, tree):
+    def __check_if_vars_in_list_not_defined(self, tree):
         assert tree.data in NODES_OF_LIST_WITH_VAR_NAMES
         for child in tree.children:
             if child.data == "var_name":
@@ -146,23 +112,22 @@ class CheckReferencedVariablesInterpreter(Interpreter):
 
     def relation(self, tree):
         assert_correct_node(tree, "relation", 2, "relation_name", "term_list")
-        self.__check_defined_variables_in_list(tree.children[1])
+        self.__check_if_vars_in_list_not_defined(tree.children[1])
 
     def fact(self, tree):
         assert_correct_node(tree, "fact", 2, "relation_name", "fact_term_list")
-        self.__check_defined_variables_in_list(tree.children[1])
+        self.__check_if_vars_in_list_not_defined(tree.children[1])
 
     def rgx_ie_relation(self, tree):
-        assert_correct_node(tree, "rgx_ie_relation", 3, "rgx_relation_arg", "term_list", "var_name")
-        if tree.children[0].children[0].data == "var_name":
-            self.__check_if_var_not_defined(tree.children[0].children[0])
-        self.__check_defined_variables_in_list(tree.children[1])
+        assert_correct_node(tree, "rgx_ie_relation", 3, "term_list", "term_list", "var_name")
+        self.__check_if_vars_in_list_not_defined(tree.children[0])
+        self.__check_if_vars_in_list_not_defined(tree.children[1])
         self.__check_if_var_not_defined(tree.children[2])
 
     def func_ie_relation(self, tree):
         assert_correct_node(tree, "func_ie_relation", 3, "function_name", "term_list", "term_list")
-        self.__check_defined_variables_in_list(tree.children[1])
-        self.__check_defined_variables_in_list(tree.children[2])
+        self.__check_if_vars_in_list_not_defined(tree.children[1])
+        self.__check_if_vars_in_list_not_defined(tree.children[2])
 
     # TODO maybe use for variable assignment at a different visitor?
     # def assign_var(self, name, value):
@@ -257,9 +222,11 @@ class CheckRuleSafetyInterpreter(Interpreter):
                 term_list_node = relation_node.children[1]
             elif relation_node.data == "func_ie_relation":
                 assert_correct_node(relation_node, "func_ie_relation", 3, "function_name", "term_list", "term_list")
+                # TODO consider first term list?
                 term_list_node = relation_node.children[2]  # get only the output parameters
             else:
-                assert_correct_node(relation_node, "rgx_ie_relation", 3, "rgx_relation_arg", "term_list", "var_name")
+                assert_correct_node(relation_node, "rgx_ie_relation", 3, "term_list", "term_list", "var_name")
+                # TODO consider first term list?
                 term_list_node = relation_node.children[1]
             assert_correct_node(term_list_node, "term_list")
             # get all the free variables that appear in the relation's output
@@ -358,6 +325,7 @@ def main():
         CheckReferencedVariablesInterpreter().visit(parse_tree)
         CheckReferencedRelationsInterpreter().visit(parse_tree)
         CheckRuleSafetyInterpreter().visit(parse_tree)
+        parse_tree = PyDatalogRepresentationVisitor().visit(parse_tree)
         print("===================")
         print(parse_tree.pretty())
         for child in parse_tree.children:
