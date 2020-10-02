@@ -63,8 +63,7 @@ span: "[" int "," int ")"
 
 int: INT -> integer
 
-string: STRING -> string
-       | STRING ((_LINE_OVERFLOW_ESCAPE)* STRING)+  -> multiline_string
+string: STRING
 
 free_var_name_list: free_var_name ("," free_var_name)*
 
@@ -85,12 +84,13 @@ _COMMENT: "#" /[^\n]*/
 
 _SEPARATOR: (_WS_INLINE | _LINE_OVERFLOW_ESCAPE)+
 
+STRING: "\"" (_STRING_INTERNAL (_LINE_OVERFLOW_ESCAPE)+)* _STRING_INTERNAL "\""
+
 _LINE_OVERFLOW_ESCAPE: "\\" _NEWLINE
 
 _NEWLINE: CR? LF
 CR : /\r/
 LF : /\n/
-
 
 // common definitions can be found at: https://github.com/lark-parser/lark/blob/master/lark/grammars/common.lark
 %import common.LCASE_LETTER
@@ -99,7 +99,7 @@ LF : /\n/
 %import common.DIGIT
 %import common.WS_INLINE -> _WS_INLINE
 %ignore _WS_INLINE
-%import common.ESCAPED_STRING -> STRING
+%import common._STRING_ESC_INNER -> _STRING_INTERNAL
 %import common.INT -> INT
 %ignore _LINE_OVERFLOW_ESCAPE
 %ignore _COMMENT

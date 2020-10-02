@@ -423,15 +423,21 @@ class QueryVisitor(Visitor):
         print(pyDatalog.ask(relation.get_string_format()))
 
 
-@v_args(inline=False)
-class StringTransformer(Transformer):
+# @v_args(inline=False)
+# class StringTransformer(Transformer):
+#
+#     def string(self, string_list):
+#         result = ""
+#         for token in string_list:
+#             string = token[1:-1]
+#             result += string
+#         return result
 
-    def string(self, string_list):
-        result = ""
-        for token in string_list:
-            string = token[1:-1]
-            result += string
-        return result
+class StringVisitor(Visitor_Recursive):
+
+    def string(self, tree):
+        print(tree.children[0])
+        tree.children[0] = tree.children[0].replace('\\\n', '')
 
 
 def assert_correct_node(tree, node_name, len_children=None, *children_names):
@@ -451,21 +457,21 @@ def main():
     with open('grammar.lark', 'r') as grammar:
         # parser = Lark(grammar, parser='lalr', transformer=CalculateTree())
         # parser = Lark(grammar, parser='lalr', transformer=CalculateTree2())
-        parser = Lark(grammar, parser='earley', debug=False)
+        parser = Lark(grammar, parser='lalr', debug=True)
 
-        test_input = open("test_input2").read()
+        test_input = open("test_input").read()
         parse_tree = parser.parse(test_input)
-        # parse_tree = StringTransformer().transform(parse_tree)
         # parse_tree = RelationTransformer().transform(parse_tree)
         # parse_tree = FactVisitor().visit(parse_tree)
         # parse_tree = QueryVisitor().visit(parse_tree)
         # parse_tree = RemoveIntegerTransformer().transform(parse_tree)
         parse_tree = RemoveTokensTransformer().transform(parse_tree)
-        parse_tree = MultilineStringToStringVisitor().visit(parse_tree)
-        CheckReferencedVariablesInterpreter().visit(parse_tree)
-        CheckReferencedRelationsInterpreter().visit(parse_tree)
-        CheckRuleSafetyVisitor().visit(parse_tree)
-        parse_tree = PyDatalogRepresentationVisitor().visit(parse_tree)
+        parse_tree = StringVisitor().visit(parse_tree)
+        # parse_tree = MultilineStringToStringVisitor().visit(parse_tree)
+        # CheckReferencedVariablesInterpreter().visit(parse_tree)
+        # CheckReferencedRelationsInterpreter().visit(parse_tree)
+        # CheckRuleSafetyVisitor().visit(parse_tree)
+        # parse_tree = PyDatalogRepresentationVisitor().visit(parse_tree)
         print("===================")
         print(parse_tree.pretty())
         for child in parse_tree.children:
