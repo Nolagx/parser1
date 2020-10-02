@@ -19,7 +19,7 @@ assign_int: var_name "=" int
 
 assign_var: var_name "=" var_name
 
-relation_declaration: "new" _separator relation_name "(" decl_term_list ")"
+relation_declaration: "new" _SEPARATOR relation_name "(" decl_term_list ")"
 
 decl_term_list: decl_term ("," decl_term)*
 
@@ -29,7 +29,7 @@ decl_term_list: decl_term ("," decl_term)*
 
 rule: rule_head "<-" rule_body
 
-rule_head: relation_name "(" free_var_name_list ")"
+rule_head: relation_name "(" term_list ")"
 
 rule_body: rule_body_relation_list
 
@@ -39,7 +39,7 @@ rule_body_relation_list: rule_body_relation ("," rule_body_relation)*
                    | ie_relation
 
 ie_relation: function_name "<" term_list ">" "(" term_list ")" -> func_ie_relation
-           | "extract" _separator "RGX" "<" (term_list) ">" "(" term_list ")" "from" _separator var_name -> rgx_ie_relation
+           | "extract" _SEPARATOR "RGX" "<" (term_list) ">" "(" term_list ")" "from" _SEPARATOR var_name -> rgx_ie_relation
 
 query: "?" relation
 
@@ -47,24 +47,19 @@ relation: relation_name "(" term_list ")"
 
 term_list: term ("," term)*
 
-?term: span
-     | string
-     | int
-     | var_name
+?term: const_term
      | free_var_name
 
-fact: relation_name "(" fact_term_list ")"
+fact: "+" relation_name "(" const_term_list ")"
 
-fact_term_list: fact_term ("," fact_term)*
+const_term_list: const_term ("," const_term)*
 
-?fact_term: span
+?const_term: span
           | string
           | int
           | var_name
 
 span: "[" int "," int ")"
-
-_separator: (_WS_INLINE | _LINE_OVERFLOW_ESCAPE)+
 
 int: INT -> integer
 
@@ -87,6 +82,8 @@ LOWER_CASE_NAME: ("_"|LCASE_LETTER) ("_"|LETTER|DIGIT)*
 UPPER_CASE_NAME: UCASE_LETTER ("_"|LETTER|DIGIT)*
 
 _COMMENT: "#" /[^\n]*/
+
+_SEPARATOR: (_WS_INLINE | _LINE_OVERFLOW_ESCAPE)+
 
 _LINE_OVERFLOW_ESCAPE: "\\" _NEWLINE
 
