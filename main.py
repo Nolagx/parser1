@@ -63,8 +63,8 @@ class PyDatalogRepresentationVisitor(Visitor_Recursive):
 
 class FactVisitor(Visitor):
 
-    def fact(self, tree):
-        assert tree.data == "fact"
+    def add_fact(self, tree):
+        assert tree.data == "add_fact"
         relation = tree.children[0]
         pyDatalog.assert_fact(relation.name, *relation.terms)
 
@@ -122,8 +122,12 @@ class CheckReferencedVariablesInterpreter(Interpreter):
         assert_correct_node(tree, "relation", 2, "relation_name", "term_list")
         self.__check_if_vars_in_list_not_defined(tree.children[1])
 
-    def fact(self, tree):
-        assert_correct_node(tree, "fact", 2, "relation_name", "const_term_list")
+    def add_fact(self, tree):
+        assert_correct_node(tree, "add_fact", 2, "relation_name", "const_term_list")
+        self.__check_if_vars_in_list_not_defined(tree.children[1])
+
+    def remove_fact(self, tree):
+        assert_correct_node(tree, "remove_fact", 2, "relation_name", "const_term_list")
         self.__check_if_vars_in_list_not_defined(tree.children[1])
 
     def rgx_ie_relation(self, tree):
@@ -190,8 +194,12 @@ class CheckReferencedRelationsInterpreter(Interpreter):
         assert_correct_node(tree, "query", 1, "relation")
         self.__check_if_relation_not_defined(self.__get_relation_name_node(tree.children[0]))
 
-    def fact(self, tree):
-        assert_correct_node(tree, "fact", 2, "relation_name", "const_term_list")
+    def add_fact(self, tree):
+        assert_correct_node(tree, "add_fact", 2, "relation_name", "const_term_list")
+        self.__check_if_relation_not_defined(tree.children[0])
+
+    def remove_fact(self, tree):
+        assert_correct_node(tree, "remove_fact", 2, "relation_name", "const_term_list")
         self.__check_if_relation_not_defined(tree.children[0])
 
     def rule(self, tree):

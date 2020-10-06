@@ -1,7 +1,8 @@
 start: (_NEWLINE)* (statement (_NEWLINE)+)* (statement)?
 
 ?statement: relation_declaration
-          | fact
+          | add_fact
+          | remove_fact
           | rule
           | query
           | assign_string
@@ -50,7 +51,10 @@ term_list: term ("," term)*
 ?term: const_term
      | free_var_name
 
-fact: "+" relation_name "(" const_term_list ")"
+add_fact: relation_name "(" const_term_list ")"
+        | relation_name "(" const_term_list ")" "<-" _TRUE
+
+remove_fact: relation_name "(" const_term_list ")" "<-" _FALSE
 
 const_term_list: const_term ("," const_term)*
 
@@ -76,6 +80,9 @@ function_name: LOWER_CASE_NAME
 var_name: LOWER_CASE_NAME
 
 free_var_name : UPPER_CASE_NAME
+
+_TRUE: "True"
+_FALSE: "False"
 
 LOWER_CASE_NAME: ("_"|LCASE_LETTER) ("_"|LETTER|DIGIT)*
 UPPER_CASE_NAME: UCASE_LETTER ("_"|LETTER|DIGIT)*
