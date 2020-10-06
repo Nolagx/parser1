@@ -9,5 +9,6 @@ class RuleNotSafeError(CustomException):
     pass
 
 
-class TermsNotProperlyTyped(CustomException):
+class TermsNotProperlyTypedError(CustomException):
     """Raised when a term type in a term sequence does not match the schema's attribute type on the same index"""
+    pass

@@ -7,12 +7,17 @@ import exceptions
 NODES_OF_LIST_WITH_VAR_NAMES = {"term_list", "const_term_list"}
 NODES_OF_LIST_WITH_RELATION_NAMES = {"rule_body_relation_list"}
 NODES_OF_LIST_WITH_FREE_VAR_NAMES = {"term_list", "free_var_name_list"}
+NODES_OF_TERM_LISTS = {"term_list", "const_term_list"}
 
 
 class VarTypes(Enum):
     STRING = 0
     SPAN = 1
     INT = 2
+
+
+def get_error_line_string(tree):
+    return "line " + str(tree.meta.line) + ": "
 
 
 class Relation:
@@ -84,7 +89,7 @@ class CheckReferencedVariablesInterpreter(Interpreter):
         assert_correct_node(var_name_node, "var_name", 1)
         var_name = var_name_node.children[0]
         if var_name not in self.vars:
-            raise NameError("variable " + var_name + " is not defined")
+            raise NameError(get_error_line_string(var_name_node) + "variable " + var_name + " is not defined")
 
     def __check_if_vars_in_list_not_defined(self, tree):
         assert tree.data in NODES_OF_LIST_WITH_VAR_NAMES
@@ -165,13 +170,15 @@ class CheckReferencedRelationsInterpreter(Interpreter):
         assert_correct_node(relation_name_node, "relation_name", 1)
         relation_name = relation_name_node.children[0]
         if relation_name not in self.relations:
-            raise NameError("relation " + relation_name + " is not defined")
+            raise NameError(get_error_line_string(relation_name_node) + "relation " +
+                            relation_name + " is not defined")
 
     def __check_if_relation_already_defined(self, relation_name_node):
         assert_correct_node(relation_name_node, "relation_name", 1)
         relation_name = relation_name_node.children[0]
         if relation_name in self.relations:
-            raise NameError("relation " + relation_name + " is already defined")
+            raise NameError(get_error_line_string(relation_name_node) + "relation "
+                            + relation_name + " is already defined")
 
     @staticmethod
     def __get_relation_name_node(tree):
@@ -297,6 +304,7 @@ class CheckRuleSafetyVisitor(Visitor_Recursive):
         invalid_free_var_names = rule_head_free_vars.difference(rule_body_free_vars)
         if invalid_free_var_names:
             raise exceptions.RuleNotSafeError(
+                get_error_line_string(tree) +
                 "the following free variables appear in the rule head but not in any"
                 " relation's output in the rule body:\n" + str(invalid_free_var_names))
         # check that every relation in the rule body is safe
@@ -325,8 +333,9 @@ class CheckRuleSafetyVisitor(Visitor_Recursive):
                     all_input_free_vars.union(self._get_set_of_input_free_var_names(relation_node))
             unbound_free_vars = all_input_free_vars.difference(bound_free_vars)
             assert unbound_free_vars
+            print(tree.meta.line)
             raise exceptions.RuleNotSafeError(
-                "the following free variables are unbound\n" + str(unbound_free_vars))
+                get_error_line_string(tree) + "the following free variables are unbound:\n" + str(unbound_free_vars))
         assert safe_relation_nodes == set(rule_body_relations)
 
 
@@ -360,8 +369,8 @@ class TypeCheckingInterpreter(Interpreter):
         assert relation_name in self.relation_name_to_schema
         return self.relation_name_to_schema[relation_name]
 
-    def __get_term_type(self, term_node):
-        term_type = term_node.data
+    def __get_const_term_type(self, const_term_node):
+        term_type = const_term_node.data
         if term_type == "string":
             return VarTypes.STRING
         elif term_type == "span":
@@ -369,23 +378,43 @@ class TypeCheckingInterpreter(Interpreter):
         elif term_type == "int":
             return VarTypes.INT
         elif term_type == "var_name":
-            assert_correct_node(term_node, "var_name", 1)
-            return self.__get_var_type(self.var_name_to_type[term_type])
-        elif term_type == "free_var_name":
-            # Can't determine type from the term node alone.
-            # leave it to the caller to figure out what the free variable type is.
-            return None
+            assert_correct_node(const_term_node, "var_name", 1)
+            return self.__get_var_type(const_term_node)
         else:
+            # do not allow for term type of "free_var_name" as it is not a constant
             assert 0
 
-    def __get_term_sequence_types(self, term_list_node, free_var_mapping=None, relation_name_node=None):
+    def __get_term_types_list(self, term_list_node: Tree, free_var_mapping: dict = None,
+                              relation_name_node: Tree = None):
         """
-        :param term_list_node: list of terms (e.g. terms used when declaring a fact)
-        :param free_var_mapping: when encountering a free variable, get it's type
-        :param relation_name_node:
-        :return:
+        get a list of the term types. The optional variables determine what type is assigned to a free
+        variable, one and only one of them should be used.
+        :param term_list_node: node of a list of terms (e.g. terms used when declaring a fact).
+        :param free_var_mapping: when encountering a free variable, get its type from this mapping.
+        :param relation_name_node: when encountering a free variable, get its type from the schema of this relation.
+        :return: a list of the term types
         """
-        pass
+        assert term_list_node.data in NODES_OF_TERM_LISTS
+        term_nodes = term_list_node.children
+        schema = None
+        if relation_name_node is not None:
+            assert_correct_node(relation_name_node, "relation_name", 1)
+            schema = self.__get_relation_schema(relation_name_node)
+            assert len(schema) == len(term_nodes)
+        assert schema is None or free_var_mapping is None
+        term_types = []
+        for idx, term_node in enumerate(term_nodes):
+            if term_node.data == "free_var_name":
+                assert_correct_node(term_node, "free_var_name", 1)
+                if schema:
+                    term_types.append(schema[idx])
+                elif free_var_mapping:
+                    term_types.append(free_var_mapping[term_node.children[0]])
+                else:
+                    assert 0
+            else:
+                term_types.append(self.__get_const_term_type(term_node))
+        return term_types
 
     def assign_literal_string(self, tree):
         assert_correct_node(tree, "assign_literal_string", 2, "var_name", "string")
@@ -427,10 +456,15 @@ class TypeCheckingInterpreter(Interpreter):
                 assert 0
         self.__add_relation_schema(tree.children[0], declared_schema)
 
-    def relation(self, tree):
+    def query(self, tree):
         assert_correct_node(tree, "relation", 2, "relation_name", "term_list")
         relation_name_node = tree.children[0]
-        relation_schema = self.__get_relation_schema(relation_name_node)
+        term_list_node = tree.children[1]
+        term_types = self.__get_term_types_list(term_list_node, relation_name_node=relation_name_node)
+        schema = self.__get_relation_schema(relation_name_node)
+        if not schema == term_types:
+            # TODO
+            raise exceptions.TermsNotProperlyTypedError(get_error_line_string(tree))
 
 
 class MultilineStringToStringVisitor(Visitor_Recursive):
@@ -509,7 +543,7 @@ def main():
     with open('grammar.lark', 'r') as grammar:
         # parser = Lark(grammar, parser='lalr', transformer=CalculateTree())
         # parser = Lark(grammar, parser='lalr', transformer=CalculateTree2())
-        parser = Lark(grammar, parser='lalr', debug=True)
+        parser = Lark(grammar, parser='lalr', debug=True, propagate_positions=True)
 
         test_input = open("test_input2").read()
         parse_tree = parser.parse(test_input)
