@@ -29,7 +29,7 @@ decl_term_list: decl_term ("," decl_term)*
 
 rule: rule_head "<-" rule_body
 
-rule_head: relation_name "(" term_list ")"
+rule_head: relation_name "(" free_var_name_list ")"
 
 rule_body: rule_body_relation_list
 
