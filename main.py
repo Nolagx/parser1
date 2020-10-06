@@ -275,12 +275,13 @@ class CheckRuleSafetyVisitor(Visitor_Recursive):
         rule_body_relation_list_node = tree.children[1].children[0]
         assert_correct_node(rule_head_term_list_node, "free_var_name_list")
         assert_correct_node(rule_body_relation_list_node, "rule_body_relation_list")
+        rule_body_relations = rule_body_relation_list_node.children
         # check that every free variable in the head occurs at least once in the body as an output of a relation.
         # get the free variables in the rule head
         rule_head_free_vars = self._get_set_of_free_var_names(rule_head_term_list_node)
         # get the free variables in the rule body
         rule_body_free_vars = set()
-        for relation_node in rule_body_relation_list_node.children:
+        for relation_node in rule_body_relations:
             # get all the free variables that appear in the relation's output
             relation_output_free_vars = self._get_set_of_output_free_var_names(relation_node)
             rule_body_free_vars = rule_body_free_vars.union(relation_output_free_vars)
@@ -295,28 +296,30 @@ class CheckRuleSafetyVisitor(Visitor_Recursive):
         safe_relation_nodes = set()
         bound_free_vars = set()
         found_safe_relation_in_cur_iter = True
-        while len(safe_relation_nodes) != len(rule_body_relation_list_node.children) \
+        while len(safe_relation_nodes) != len(rule_body_relations) \
                 and found_safe_relation_in_cur_iter:
             found_safe_relation_in_cur_iter = False
-            for relation_node in rule_body_relation_list_node.children:
+            for relation_node in rule_body_relations:
                 if relation_node not in safe_relation_nodes:
                     input_free_vars = self._get_set_of_input_free_var_names(relation_node)
                     unbound_free_vars = input_free_vars.difference(bound_free_vars)
                     if not unbound_free_vars:
+                        # relation is safe, mark all of its output variables as bound
                         found_safe_relation_in_cur_iter = True
                         output_free_vars = self._get_set_of_output_free_var_names(relation_node)
                         bound_free_vars = bound_free_vars.union(output_free_vars)
                         safe_relation_nodes.add(relation_node)
-        if not len(safe_relation_nodes) == len(rule_body_relation_list_node.children):
+        if not len(safe_relation_nodes) == len(rule_body_relations):
             # find and print all the free variables that are unbound
             all_input_free_vars = set()
-            for relation_node in rule_body_relation_list_node.children:
+            for relation_node in rule_body_relations:
                 all_input_free_vars = \
                     all_input_free_vars.union(self._get_set_of_input_free_var_names(relation_node))
             unbound_free_vars = all_input_free_vars.difference(bound_free_vars)
             assert unbound_free_vars
             raise exceptions.RuleNotSafeError(
                 "the following free variables are unbound\n" + str(unbound_free_vars))
+        assert safe_relation_nodes == set(rule_body_relations)
 
 
 class TypeCheckingInterpreter(Interpreter):
