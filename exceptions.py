@@ -12,3 +12,8 @@ class RuleNotSafeError(CustomException):
 class TermsNotProperlyTypedError(CustomException):
     """Raised when a term type in a term sequence does not match the schema's attribute type on the same index"""
     pass
+
+
+class FreeVariableTypeConflict(CustomException):
+    """Raised when a free variable has more than one type"""
+    pass
