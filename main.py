@@ -5,10 +5,11 @@ from enum import Enum
 import exceptions
 
 NODES_OF_LIST_WITH_VAR_NAMES = {"term_list", "const_term_list"}
-NODES_OF_LIST_WITH_RELATION_NAMES = {"rule_body_relation_list"}
+NODES_OF_LIST_WITH_RELATION_NODES = {"rule_body_relation_list"}
 NODES_OF_LIST_WITH_FREE_VAR_NAMES = {"term_list", "free_var_name_list"}
 NODES_OF_TERM_LISTS = {"term_list", "const_term_list"}
 NODES_OF_RULE_BODY_TERM_LISTS = {"term_list"}
+SCHEMA_DEFINING_NODES = {"decl_term_list", "free_var_name_list"}
 
 
 class VarTypes(Enum):
@@ -160,63 +161,86 @@ class CheckReferencedRelationsInterpreter(Interpreter):
 
     def __init__(self):
         super().__init__()
-        self.relations = set()
+        self.relation_name_to_arity = dict()
 
-    def __add_relation_name_to_relations(self, relation_name_node):
+    def __add_relation_definition(self, relation_name_node, schema_defining_node):
         assert_correct_node(relation_name_node, "relation_name", 1)
+        assert schema_defining_node.data in SCHEMA_DEFINING_NODES
         relation_name = relation_name_node.children[0]
-        self.relations.add(relation_name)
+        assert relation_name not in self.relation_name_to_arity
+        arity = len(schema_defining_node.children)
+        self.relation_name_to_arity[relation_name] = arity
 
-    def __check_if_relation_not_defined(self, relation_name_node):
+    def __check_if_relation_not_defined(self, relation_name_node, term_list_node):
         assert_correct_node(relation_name_node, "relation_name", 1)
+        assert term_list_node.data in NODES_OF_TERM_LISTS
         relation_name = relation_name_node.children[0]
-        if relation_name not in self.relations:
-            raise NameError(get_error_line_string(relation_name_node) + "relation " +
-                            relation_name + " is not defined")
+        if relation_name not in self.relation_name_to_arity:
+            raise exceptions.RelationNotDefinedError(get_error_line_string(relation_name_node) + "relation " +
+                                                     relation_name + " is not defined")
+        arity = len(term_list_node.children)
+        correct_arity = self.relation_name_to_arity[relation_name]
+        if arity != correct_arity:
+            raise exceptions.IncorrectArityError(
+                get_error_line_string(relation_name_node) +
+                "incorrect arity used for relation " + relation_name + ": " +
+                str(arity) + " (expected " + str(correct_arity) + ")")
 
     def __check_if_relation_already_defined(self, relation_name_node):
         assert_correct_node(relation_name_node, "relation_name", 1)
         relation_name = relation_name_node.children[0]
-        if relation_name in self.relations:
-            raise NameError(get_error_line_string(relation_name_node) + "relation "
-                            + relation_name + " is already defined")
-
-    @staticmethod
-    def __get_relation_name_node(tree):
-        if tree.data == "relation":
-            assert_correct_node(tree, "relation", 2, "relation_name", "term_list")
-            return tree.children[0]
-
-    def __check_if_list_relations_not_defined(self, list_node):
-        assert list_node.data in NODES_OF_LIST_WITH_RELATION_NAMES
-        for child in list_node.children:
-            if child.data == "relation":
-                self.__check_if_relation_not_defined(self.__get_relation_name_node(child))
+        if relation_name in self.relation_name_to_arity:
+            raise exceptions.RelationRedefinitionError(
+                get_error_line_string(relation_name_node) + "relation "
+                + relation_name + " is already defined")
 
     def relation_declaration(self, tree):
         assert_correct_node(tree, "relation_declaration", 2, "relation_name", "decl_term_list")
         self.__check_if_relation_already_defined(tree.children[0])
-        self.__add_relation_name_to_relations(tree.children[0])
+        self.__add_relation_definition(tree.children[0], tree.children[1])
 
     def query(self, tree):
         assert_correct_node(tree, "query", 1, "relation")
-        self.__check_if_relation_not_defined(self.__get_relation_name_node(tree.children[0]))
+        relation_node = tree.children[0]
+        assert_correct_node(relation_node, "relation", 2, "relation_name", "term_list")
+        self.__check_if_relation_not_defined(relation_node.children[0], relation_node.children[1])
 
     def add_fact(self, tree):
         assert_correct_node(tree, "add_fact", 2, "relation_name", "const_term_list")
-        self.__check_if_relation_not_defined(tree.children[0])
+        self.__check_if_relation_not_defined(tree.children[0], tree.children[1])
 
     def remove_fact(self, tree):
         assert_correct_node(tree, "remove_fact", 2, "relation_name", "const_term_list")
-        self.__check_if_relation_not_defined(tree.children[0])
+        self.__check_if_relation_not_defined(tree.children[0], tree.children[1])
 
     def rule(self, tree):
         assert_correct_node(tree, "rule", 2, "rule_head", "rule_body")
-        assert_correct_node(tree.children[1], "rule_body", 1, "rule_body_relation_list")
-        self.__check_if_list_relations_not_defined(tree.children[1].children[0])
-        assert_correct_node(tree.children[0], "rule_head", 2, "relation_name", "free_var_name_list")
+        rule_body_node = tree.children[1]
+        assert_correct_node(rule_body_node, "rule_body", 1, "rule_body_relation_list")
+        relation_list_node = rule_body_node.children[0]
+        assert_correct_node(relation_list_node, "rule_body_relation_list")
+        for relation_node in relation_list_node.children:
+            if relation_node.data == "relation":
+                assert_correct_node(relation_node, "relation", 2, "relation_name", "term_list")
+                self.__check_if_relation_not_defined(relation_node.children[0], relation_node.children[1])
+        rule_head_node = tree.children[0]
+        assert_correct_node(rule_head_node, "rule_head", 2, "relation_name", "free_var_name_list")
         # TODO allow adding rules to the same relation (currently allowed)? under what conditions?
-        self.__add_relation_name_to_relations(tree.children[0].children[0])
+        self.__add_relation_definition(rule_head_node.children[0], rule_head_node.children[1])
+
+
+class CheckReferencedIERelationsVisitor(Visitor_Recursive):
+
+    def __init__(self):
+        super().__init__()
+
+    def func_ie_relation(self, tree):
+        # TODO
+        pass
+
+    def rgx_ie_relation(self, tree):
+        # TODO
+        pass
 
 
 class CheckRuleSafetyVisitor(Visitor_Recursive):
@@ -615,6 +639,7 @@ class TypeCheckingInterpreter(Interpreter):
             raise exceptions.TermsNotProperlyTypedError(error)
         # TODO if rule head was already defined, check if properly typed
         # TODO if rule head not already defined, add it to the schemas
+
 
 class MultilineStringToStringVisitor(Visitor_Recursive):
 

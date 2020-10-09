@@ -4,6 +4,18 @@ class CustomException(Exception):
     pass
 
 
+class RelationNotDefinedError(CustomException):
+    """Raised when a relation is not defined"""
+
+
+class RelationRedefinitionError(CustomException):
+    """Raised when a relation is redefined"""
+
+
+class IncorrectArityError(CustomException):
+    """Raised when an incorrect arity is used for relations/ie function calls"""
+
+
 class RuleNotSafeError(CustomException):
     """Raised when a rule is not safe"""
     pass
