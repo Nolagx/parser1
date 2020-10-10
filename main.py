@@ -215,17 +215,17 @@ class CheckReferencedRelationsInterpreter(Interpreter):
 
     def rule(self, tree):
         assert_correct_node(tree, "rule", 2, "rule_head", "rule_body")
+        rule_head_node = tree.children[0]
         rule_body_node = tree.children[1]
+        assert_correct_node(rule_head_node, "rule_head", 2, "relation_name", "free_var_name_list")
         assert_correct_node(rule_body_node, "rule_body", 1, "rule_body_relation_list")
+        self.__check_if_relation_already_defined(rule_head_node.children[0])
         relation_list_node = rule_body_node.children[0]
         assert_correct_node(relation_list_node, "rule_body_relation_list")
         for relation_node in relation_list_node.children:
             if relation_node.data == "relation":
                 assert_correct_node(relation_node, "relation", 2, "relation_name", "term_list")
                 self.__check_if_relation_not_defined(relation_node.children[0], relation_node.children[1])
-        rule_head_node = tree.children[0]
-        assert_correct_node(rule_head_node, "rule_head", 2, "relation_name", "free_var_name_list")
-        # TODO allow adding rules to the same relation (currently allowed)? under what conditions?
         self.__add_relation_definition(rule_head_node.children[0], rule_head_node.children[1])
 
 
