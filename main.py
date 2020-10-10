@@ -235,12 +235,12 @@ class CheckReferencedIERelationsVisitor(Visitor_Recursive):
         super().__init__()
 
     def func_ie_relation(self, tree):
+        assert_correct_node(tree, "func_ie_relation", 3, "function_name", "term_list", "term_list")
         # TODO
-        pass
 
     def rgx_ie_relation(self, tree):
+        assert_correct_node(tree, "rgx_ie_relation", 3, "term_list", "term_list", "var_name")
         # TODO
-        pass
 
 
 class CheckRuleSafetyVisitor(Visitor_Recursive):
@@ -578,21 +578,17 @@ class TypeCheckingInterpreter(Interpreter):
         assert_correct_node(tree.children[0], "rule_head", 2, "relation_name", "free_var_name_list")
         assert_correct_node(tree.children[1], "rule_body", 1, "rule_body_relation_list")
         rule_head_name_node = tree.children[0].children[0]
+        assert rule_head_name_node.children[0] not in self.relation_name_to_schema
         rule_head_term_list_node = tree.children[0].children[1]
         rule_body_relation_list_node = tree.children[1].children[0]
         assert_correct_node(rule_head_name_node, "relation_name", 1)
         assert_correct_node(rule_head_term_list_node, "free_var_name_list")
         assert_correct_node(rule_body_relation_list_node, "rule_body_relation_list")
-        rule_head_terms = rule_head_term_list_node.children
         rule_body_relations = rule_body_relation_list_node.children
         free_var_to_type = dict()
         conflicted_free_vars = dict()
         improperly_typed_relation_idxs = list()
-        # TODO check if the rule head was already defined, if it is, add its free vars to the map
-        # ======= remove =======
-        assert rule_head_name_node.children[0] not in self.relation_name_to_schema
-        # ======= /remove =======
-
+        # The actual type checking. Look for conflicting free variables and improperly typed relations
         for idx, relation_node in enumerate(rule_body_relations):
             if relation_node.data == "relation":
                 assert_correct_node(relation_node, "relation", 2, "relation_name", "term_list")
@@ -637,8 +633,17 @@ class TypeCheckingInterpreter(Interpreter):
                     # TODO
                 error += "\n"
             raise exceptions.TermsNotProperlyTypedError(error)
-        # TODO if rule head was already defined, check if properly typed
-        # TODO if rule head not already defined, add it to the schemas
+
+        # no issues were found, add the new schema to the schema dict
+        rule_head_schema = []
+        for rule_head_term_node in rule_head_term_list_node.children:
+            assert_correct_node(rule_head_term_node, "free_var_name", 1)
+            free_var_name = rule_head_term_node.children[0]
+            assert free_var_name in free_var_to_type
+            var_type = free_var_to_type[free_var_name]
+            rule_head_schema.append(var_type)
+        rule_head_name = rule_head_name_node.children[0]
+        self.relation_name_to_schema[rule_head_name] = rule_head_schema
 
 
 class MultilineStringToStringVisitor(Visitor_Recursive):
