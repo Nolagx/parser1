@@ -4,6 +4,10 @@ class CustomException(Exception):
     pass
 
 
+class VariableNotDefinedError(CustomException):
+    """Raised when a variable is not defined"""
+
+
 class RelationNotDefinedError(CustomException):
     """Raised when a relation is not defined"""
 
@@ -26,6 +30,6 @@ class TermsNotProperlyTypedError(CustomException):
     pass
 
 
-class FreeVariableTypeConflict(CustomException):
+class FreeVariableTypeConflictError(CustomException):
     """Raised when a free variable has more than one type"""
     pass

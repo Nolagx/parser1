@@ -93,7 +93,8 @@ class CheckReferencedVariablesInterpreter(Interpreter):
         assert_correct_node(var_name_node, "var_name", 1)
         var_name = var_name_node.children[0]
         if var_name not in self.vars:
-            raise NameError(get_error_line_string(var_name_node) + "variable " + var_name + " is not defined")
+            raise exceptions.VariableNotDefinedError(
+                get_error_line_string(var_name_node) + "variable " + var_name + " is not defined")
 
     def __check_if_vars_in_list_not_defined(self, tree):
         assert tree.data in NODES_OF_LIST_WITH_VAR_NAMES
@@ -611,7 +612,7 @@ class TypeCheckingInterpreter(Interpreter):
             error = get_error_line_string(tree) + "the following free variables have conflicting types\n"
             for free_var in conflicted_free_vars:
                 error += free_var + ": " + "{" + self.__get_type_list_string(conflicted_free_vars[free_var]) + "}\n"
-            raise exceptions.FreeVariableTypeConflict(error)
+            raise exceptions.FreeVariableTypeConflictError(error)
 
         if improperly_typed_relation_idxs:
             error = get_error_line_string(tree) + "the following rule body relations are not properly typed:\n"
