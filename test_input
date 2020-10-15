@@ -5,7 +5,7 @@ b = "3\
 b = 3654
 c = b
 new parent(str, str)
-+parent("Bob", "Greg")
+parent("Bob", "Greg")
 bee = "dan"
 c = "heh"
 d = read("snack")
@@ -14,13 +14,13 @@ test = [10, 432)
 f = c
 g = read(f)
 b = "a"
-parent(X) <- extract RGX<"test">(X) from b
-+parent("bob", "greg")
-+parent(b, b, [34,24), "ssss")
-parent(X,Y) <- get_happy<b>(X,Y)
+#cat(X) <- extract RGX<"test">(X) from b
+parent("bob", "greg")
+parent(b, b)
+#parent2(X,Y) <- get_happy<b>(X,Y)
 grandparent(X,Y) <- \
 parent(X,Z),parent(Z,Y)
-?parent(X,Y,Z,"greg",[2,3))
-parent(X) <- extract RGX<b>(b, X, [1, 2), "ll\
-ll", 3) from b
-parent(X) <- extract RGX<"s">(b, X, [1, 2), "ssss", 3) from b
+parent("greg","[2,3)")
+#parent3(X) <- extract RGX<b>(b, X, [1, 2), "ll\
+#ll", 3) from b
+#parent4(X) <- extract RGX<"s">(b, X, [1, 2), "ssss", 3) from b

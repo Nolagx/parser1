@@ -3,6 +3,8 @@ from lark.visitors import Interpreter, Visitor_Recursive
 from pyDatalog import pyDatalog
 from enum import Enum
 import exceptions
+from graph_converters import LarkTreeToNetxTreeConverter, NetxTreeToLarkTreeConverter
+import networkx as nx
 
 NODES_OF_LIST_WITH_VAR_NAMES = {"term_list", "const_term_list"}
 NODES_OF_LIST_WITH_RELATION_NODES = {"rule_body_relation_list"}
@@ -646,21 +648,6 @@ class TypeCheckingInterpreter(Interpreter):
         self.relation_name_to_schema[rule_head_name] = rule_head_schema
 
 
-class MultilineStringToStringVisitor(Visitor_Recursive):
-
-    def __init__(self):
-        super().__init__()
-
-    def multiline_string(self, tree):
-        assert_correct_node(tree, "multiline_string")
-        result = ""
-        for child_string in tree.children:
-            result += child_string
-        # redefine the node to be a regular string node
-        tree.data = "string"
-        tree.children = [result]
-
-
 # TODO do this with visitor instead (more efficient)
 @v_args(inline=False)
 class RemoveTokensTransformer(Transformer):
@@ -688,16 +675,6 @@ class QueryVisitor(Visitor):
         relation = tree.children[0]
         print(pyDatalog.ask(relation.get_string_format()))
 
-
-# @v_args(inline=False)
-# class StringTransformer(Transformer):
-#
-#     def string(self, string_list):
-#         result = ""
-#         for token in string_list:
-#             string = token[1:-1]
-#             result += string
-#         return result
 
 class StringVisitor(Visitor_Recursive):
 
@@ -735,6 +712,7 @@ def main():
         # parse_tree = PyDatalogRepresentationVisitor().visit(parse_tree)
         print("===================")
         print(parse_tree.pretty())
+        print(parse_tree)
         for child in parse_tree.children:
             print(child)
 
@@ -743,6 +721,19 @@ def main():
         # for line in non_empty_lines:
         #     # print(line)
         #     print(parser.parse(line))
+
+        # TODO  =========== delete ============
+        print("==========")
+        parse_tree2 = LarkTreeToNetxTreeConverter().convert(parse_tree)
+        print(parse_tree2.pretty())
+        parse_tree2 = NetxTreeToLarkTreeConverter().convert(parse_tree2)
+        # print(parse_tree)
+        # for child in parse_tree.children:
+        #     print(child)
+        print(parse_tree2.pretty())
+        assert parse_tree == parse_tree2
+        print(parse_tree == parse_tree2)
+        # TODO  =========== /delete ============
 
 
 if __name__ == "__main__":
