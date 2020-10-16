@@ -17,10 +17,6 @@ class VarTypes(Enum):
     INT = 2
 
 
-def get_error_line_string(tree):
-    return "line " + str(tree.meta.line) + ": "
-
-
 def assert_correct_node(tree, node_name, len_children=None, *children_names):
     assert tree.data == node_name, "bad node name: " + node_name + \
                                    "\n actual node name: " + tree.data
@@ -87,8 +83,7 @@ class CheckReferencedVariablesInterpreter(Interpreter):
         assert_correct_node(var_name_node, "var_name", 1)
         var_name = var_name_node.children[0]
         if var_name not in self.vars:
-            raise exceptions.VariableNotDefinedError(
-                get_error_line_string(var_name_node) + "variable " + var_name + " is not defined")
+            raise Exception
 
     def __check_if_vars_in_list_not_defined(self, tree):
         assert tree.data in NODES_OF_LIST_WITH_VAR_NAMES
@@ -170,23 +165,17 @@ class CheckReferencedRelationsInterpreter(Interpreter):
         assert term_list_node.data in NODES_OF_TERM_LISTS
         relation_name = relation_name_node.children[0]
         if relation_name not in self.relation_name_to_arity:
-            raise exceptions.RelationNotDefinedError(get_error_line_string(relation_name_node) + "relation " +
-                                                     relation_name + " is not defined")
+            raise Exception
         arity = len(term_list_node.children)
         correct_arity = self.relation_name_to_arity[relation_name]
         if arity != correct_arity:
-            raise exceptions.IncorrectArityError(
-                get_error_line_string(relation_name_node) +
-                "incorrect arity used for relation " + relation_name + ": " +
-                str(arity) + " (expected " + str(correct_arity) + ")")
+            raise Exception
 
     def __check_if_relation_already_defined(self, relation_name_node):
         assert_correct_node(relation_name_node, "relation_name", 1)
         relation_name = relation_name_node.children[0]
         if relation_name in self.relation_name_to_arity:
-            raise exceptions.RelationRedefinitionError(
-                get_error_line_string(relation_name_node) + "relation "
-                + relation_name + " is already defined")
+            raise Exception
 
     def relation_declaration(self, tree):
         assert_correct_node(tree, "relation_declaration", 2, "relation_name", "decl_term_list")
@@ -330,10 +319,7 @@ class CheckRuleSafetyVisitor(Visitor_Recursive):
         # make sure that every free var in the rule head appears at least once in the rule body
         invalid_free_var_names = rule_head_free_vars.difference(rule_body_free_vars)
         if invalid_free_var_names:
-            raise exceptions.RuleNotSafeError(
-                get_error_line_string(tree) +
-                "the following free variables appear in the rule head but not in any"
-                " relation's output in the rule body:\n" + str(invalid_free_var_names))
+            raise Exception
         # check that every relation in the rule body is safe
         # initialize assuming every relation is unsafe and every free variable is unbound
         safe_relation_indexes = set()
@@ -353,20 +339,15 @@ class CheckRuleSafetyVisitor(Visitor_Recursive):
                         bound_free_vars = bound_free_vars.union(output_free_vars)
                         safe_relation_indexes.add(idx)
         if len(safe_relation_indexes) != len(rule_body_relations):
-            # find and print all the free variables that are unbound
-            all_input_free_vars = set()
-            for relation_node in rule_body_relations:
-                all_input_free_vars = \
-                    all_input_free_vars.union(self.__get_set_of_input_free_var_names(relation_node))
-            unbound_free_vars = all_input_free_vars.difference(bound_free_vars)
-            assert unbound_free_vars
-            raise exceptions.RuleNotSafeError(
-                get_error_line_string(tree) + "the following free variables are unbound:\n" + str(unbound_free_vars))
+            raise Exception
 
 
 class TypeCheckingInterpreter(Interpreter):
     """
     A lark tree semantic check.
+    Assumes that relations and ie relations references and correct arity were checked.
+    Also assumes variable references were checked.
+
     performs the following checks:
     1. checks if relation references are properly typed.
     2. checks if ie relations are properly typed.
@@ -453,32 +434,6 @@ class TypeCheckingInterpreter(Interpreter):
                 term_types.append(self.__get_const_term_type(term_node))
         return term_types
 
-    @staticmethod
-    def __get_type_list_string(type_list):
-        ret = ""
-        for idx, var_type in enumerate(type_list):
-            if var_type == VarTypes.STRING:
-                ret += "str"
-            elif var_type == VarTypes.SPAN:
-                ret += "spn"
-            elif var_type == VarTypes.INT:
-                ret += "int"
-            else:
-                assert 0
-            if idx < len(type_list) - 1:
-                ret += ", "
-        return ret
-
-    def __get_schema_string(self, relation_name_node, schema):
-        assert_correct_node(relation_name_node, "relation_name", 1)
-        return relation_name_node.children[0] + "(" + self.__get_type_list_string(schema) + ")"
-
-    def __get_schema_comparison_string(self, relation_name_node, expected_schema, received_schema):
-        assert_correct_node(relation_name_node, "relation_name", 1)
-        assert expected_schema != received_schema
-        return "expected: " + self.__get_schema_string(relation_name_node, expected_schema) + "\n" + \
-               "got: " + self.__get_schema_string(relation_name_node, received_schema)
-
     def assign_literal_string(self, tree):
         assert_correct_node(tree, "assign_literal_string", 2, "var_name", "string")
         self.__add_var_type(tree.children[0], VarTypes.STRING)
@@ -526,9 +481,7 @@ class TypeCheckingInterpreter(Interpreter):
         term_types = self.__get_term_types_list(term_list_node)
         schema = self.__get_relation_schema(relation_name_node)
         if schema != term_types:
-            raise exceptions.TermsNotProperlyTypedError(
-                get_error_line_string(tree) + "the terms in the fact are not properly typed\n" +
-                self.__get_schema_comparison_string(relation_name_node, schema, term_types))
+            raise Exception
 
     def remove_fact(self, tree):
         assert_correct_node(tree, "remove_fact", 2, "relation_name", "const_term_list")
@@ -537,9 +490,7 @@ class TypeCheckingInterpreter(Interpreter):
         term_types = self.__get_term_types_list(term_list_node)
         schema = self.__get_relation_schema(relation_name_node)
         if schema != term_types:
-            raise exceptions.TermsNotProperlyTypedError(
-                get_error_line_string(tree) + "the terms in the removed fact are not properly typed\n" +
-                self.__get_schema_comparison_string(relation_name_node, schema, term_types))
+            raise Exception
 
     def query(self, tree):
         assert_correct_node(tree, "query", 1, "relation")
@@ -550,15 +501,20 @@ class TypeCheckingInterpreter(Interpreter):
         term_types = self.__get_term_types_list(term_list_node, relation_name_node=relation_name_node)
         schema = self.__get_relation_schema(relation_name_node)
         if schema != term_types:
-            raise exceptions.TermsNotProperlyTypedError(
-                get_error_line_string(tree) + "the terms in the query are not properly typed\n" +
-                self.__get_schema_comparison_string(relation_name_node, schema, term_types))
+            raise Exception
 
     def __type_check_rule_body_term_list(self, term_list_node: Tree, correct_types: list,
-                                         free_var_to_type: dict, conflicted_free_vars: dict):
+                                         free_var_to_type: dict):
+        """
+        checks if a rule body relation is properly typed
+        also checks for conflicting free variables
+        :param term_list_node: the term list of a rule body relation
+        :param correct_types: a list of the types that the terms in the term list should have
+        :param free_var_to_type: a mapping of free variables to their type (those that are currently known)
+        :return:
+        """
         assert term_list_node.data in NODES_OF_RULE_BODY_TERM_LISTS
         assert len(term_list_node.children) == len(correct_types)
-        term_list_is_properly_typed = True
         for idx, term_node in enumerate(term_list_node.children):
             correct_type = correct_types[idx]
             if term_node.data == "free_var_name":
@@ -568,20 +524,16 @@ class TypeCheckingInterpreter(Interpreter):
                     # free var already has a type, make sure there's no conflict with the currently wanted type
                     free_var_type = free_var_to_type[free_var]
                     if free_var_type != correct_type:
-                        # found a conflicted free var, add it to the conflicted dict along with the conflicting types
-                        if free_var not in conflicted_free_vars:
-                            conflicted_free_vars[free_var] = set()
-                        term_list_is_properly_typed = False
-                        conflicted_free_vars[free_var].add(correct_type)
-                        conflicted_free_vars[free_var].add(free_var_type)
+                        # found a conflicted free var
+                        raise Exception
                 else:
                     # free var does not currently have a type, map it to the correct type
                     free_var_to_type[free_var] = correct_type
             else:
                 term_type = self.__get_const_term_type(term_node)
                 if term_type != correct_type:
-                    term_list_is_properly_typed = False
-        return term_list_is_properly_typed
+                    # term is not properly typed
+                    raise Exception
 
     def rule(self, tree):
         assert_correct_node(tree, "rule", 2, "rule_head", "rule_body")
@@ -596,53 +548,20 @@ class TypeCheckingInterpreter(Interpreter):
         assert_correct_node(rule_body_relation_list_node, "rule_body_relation_list")
         rule_body_relations = rule_body_relation_list_node.children
         free_var_to_type = dict()
-        conflicted_free_vars = dict()
-        improperly_typed_relation_idxs = list()
-        # The actual type checking. Look for conflicting free variables and improperly typed relations
+        # Look for conflicting free variables and improperly typed relations
         for idx, relation_node in enumerate(rule_body_relations):
             if relation_node.data == "relation":
                 assert_correct_node(relation_node, "relation", 2, "relation_name", "term_list")
                 relation_name_node = relation_node.children[0]
                 term_list_node = relation_node.children[1]
                 schema = self.__get_relation_schema(relation_name_node)
-                if not self.__type_check_rule_body_term_list(term_list_node, schema,
-                                                             free_var_to_type, conflicted_free_vars):
-                    improperly_typed_relation_idxs.append(idx)
+                self.__type_check_rule_body_term_list(term_list_node, schema, free_var_to_type)
             elif relation_node.data == "func_ie_relation":
                 assert_correct_node(relation_node, "func_ie_relation", 3, "function_name", "term_list", "term_list")
                 # TODO
             else:
                 assert_correct_node(relation_node, "rgx_ie_relation", 3, "term_list", "term_list", "var_name")
                 # TODO
-
-        if conflicted_free_vars:
-            error = get_error_line_string(tree) + "the following free variables have conflicting types\n"
-            for free_var in conflicted_free_vars:
-                error += free_var + ": " + "{" + self.__get_type_list_string(conflicted_free_vars[free_var]) + "}\n"
-            raise exceptions.FreeVariableTypeConflictError(error)
-
-        if improperly_typed_relation_idxs:
-            error = get_error_line_string(tree) + "the following rule body relations are not properly typed:\n"
-            for idx in improperly_typed_relation_idxs:
-                relation_node = rule_body_relations[idx]
-                error += "at index " + str(idx) + ":\n"
-                if relation_node.data == "relation":
-                    assert_correct_node(relation_node, "relation", 2, "relation_name", "term_list")
-                    relation_name_node = relation_node.children[0]
-                    relation_term_types = self.__get_term_types_list(relation_node.children[1],
-                                                                     free_var_mapping=free_var_to_type)
-                    schema = self.__get_relation_schema(relation_name_node)
-                    error += self.__get_schema_comparison_string(relation_name_node, schema, relation_term_types)
-                elif relation_node.data == "func_ie_relation":
-                    assert_correct_node(relation_node, "func_ie_relation", 3,
-                                        "function_name", "term_list", "term_list")
-                    # TODO
-                else:
-                    assert_correct_node(relation_node, "rgx_ie_relation", 3,
-                                        "term_list", "term_list", "var_name")
-                    # TODO
-                error += "\n"
-            raise exceptions.TermsNotProperlyTypedError(error)
 
         # no issues were found, add the new schema to the schema dict
         rule_head_schema = []

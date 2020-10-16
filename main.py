@@ -39,7 +39,8 @@ def main():
             lark_passes.CheckReferencedRelationsInterpreter,
             lark_passes.CheckRuleSafetyVisitor,
             lark_passes.TypeCheckingInterpreter,
-            graph_converters.LarkTreeToNetxTreeConverter
+            graph_converters.LarkTreeToNetxTreeConverter,
+            graph_converters.NetxTreeToLarkTreeConverter
         ]
         parse_tree = run_passes(parse_tree, passes)
 
@@ -68,8 +69,6 @@ def main():
         print(test_tree.pretty())
         test_tree = graph_converters.NetxTreeToLarkTreeConverter().convert(test_tree)
         print(parse_tree)
-        for child in parse_tree.children:
-            print(child)
         print(test_tree.pretty())
         assert test_tree == parse_tree
         # TODO  =========== /delete ============
