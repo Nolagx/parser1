@@ -34,7 +34,45 @@ def assert_correct_node(tree, node_name, len_children=None, *children_names):
                                                     "\n actual child name: " + tree.children[idx].data
 
 
+@v_args(inline=False)
+class RemoveTokensTransformer(Transformer):
+    """
+    transforms the lark tree by removing the redundant tokens.
+    should be used before all the other passes as they assume no tokens exists
+    """
+
+    def __init__(self):
+        super().__init__(visit_tokens=True)
+
+    def INT(self, args):
+        return int(args[0:])
+
+    def LOWER_CASE_NAME(self, args):
+        return args[0:]
+
+    def UPPER_CASE_NAME(self, args):
+        return args[0:]
+
+    def STRING(self, args):
+        # removes the quotation marks
+        return args[1:-1]
+
+
+class StringVisitor(Visitor_Recursive):
+    """
+     Fixes the strings in the lark tree.
+     Removes the line overflow escapes from strings
+     """
+
+    def string(self, tree):
+        tree.children[0] = tree.children[0].replace('\\\n', '')
+
+
 class CheckReferencedVariablesInterpreter(Interpreter):
+    """
+    A lark tree semantic check.
+    checks whether each variable reference refers to a defined variable.
+    """
 
     def __init__(self):
         super().__init__()
@@ -109,6 +147,11 @@ class CheckReferencedVariablesInterpreter(Interpreter):
 
 
 class CheckReferencedRelationsInterpreter(Interpreter):
+    """
+    A lark tree semantic check.
+    checks whether each non ie relation reference refers to a defined relation.
+    Also checks if the relation reference uses the correct arity.
+    """
 
     def __init__(self):
         super().__init__()
@@ -181,6 +224,11 @@ class CheckReferencedRelationsInterpreter(Interpreter):
 
 
 class CheckReferencedIERelationsVisitor(Visitor_Recursive):
+    """
+    A lark tree semantic check.
+    checks whether each ie relation reference refers to a defined ie function.
+    Also checks if the ie relation reference uses the correct arity for the ie function.
+    """
 
     def __init__(self):
         super().__init__()
@@ -195,6 +243,36 @@ class CheckReferencedIERelationsVisitor(Visitor_Recursive):
 
 
 class CheckRuleSafetyVisitor(Visitor_Recursive):
+    """
+    A lark tree semantic check.
+    checks whether the rules in the programs are safe.
+
+    For a rule to be safe, two conditions must apply:
+
+    1. Every free variable in the head occurs at least once in the body as an output of a relation.
+
+    examples:
+    a. "parent(X,Y) <- son(X)" is not a safe rule because the free variable Y only appears in the rule head.
+    b. "parent(X,Z) <- parent(X,Y), parent(Y,Z)" is a safe rule as both X,Z that appear in the rule head, also
+        appear in the rule body.
+    c. "happy(X) <- is_happy<X>(Y)" is not a safe rule as X does not appear as an output of a relation.
+
+    2. Every free variable is bound.
+    A bound free variable is a free variable that has a constraint that imposes a
+    limit on the amount of values it can take.
+
+    In order to check that every free variable is bound, we will check that every relation in the rule body
+    is a safe relation, meaning:
+    a. A safe relation is one where its input relation is safe,
+    meaning all its input's free variables are bound.
+    b. A bound variable is one that exists in the output of a safe relation.
+
+    examples:
+    a. "rel2(X,Y) <- rel1(X,Z),ie1<X>(Y)" is safe as the only input free variable, X, exists in the output of
+    the safe relation rel1(X,Z).
+    b. " rel2(Y) <- ie1<Z>(Y)" is not safe as the input free variable Z does not exist in the output of any
+    safe relation.
+    """
 
     def __init__(self):
         super().__init__()
@@ -232,33 +310,6 @@ class CheckRuleSafetyVisitor(Visitor_Recursive):
             return self.__get_set_of_free_var_names(relation_node.children[1])
 
     def rule(self, tree):
-        """
-        This function checks that a rule is safe. For a rule to be safe, two conditions must apply:
-
-        1. Every free variable in the head occurs at least once in the body as an output of a relation.
-
-        examples:
-        a. "parent(X,Y) <- son(X)" is not a safe rule because the free variable Y only appears in the rule head.
-        b. "parent(X,Z) <- parent(X,Y), parent(Y,Z)" is a safe rule as both X,Z that appear in the rule head, also
-            appear in the rule body.
-        c. "happy(X) <- is_happy<X>(Y)" is not a safe rule as X does not appear as an output of a relation.
-
-        2. Every free variable is bound.
-        A bound free variable is a free variable that has a constraint that imposes a
-        limit on the amount of values it can take.
-
-        In order to check that every free variable is bound, we will check that every relation in the rule body
-        is a safe relation, meaning:
-        a. A safe relation is one where its input relation is safe,
-        meaning all its input's free variables are bound.
-        b. A bound variable is one that exists in the output of a safe relation.
-
-        examples:
-        a. "rel2(X,Y) <- rel1(X,Z),ie1<X>(Y)" is safe as the only input free variable, X, exists in the output of
-        the safe relation rel1(X,Z).
-        b. " rel2(Y) <- ie1<Z>(Y)" is not safe as the input free variable Z does not exist in the output of any
-        safe relation.
-        """
         assert_correct_node(tree, "rule", 2, "rule_head", "rule_body")
         assert_correct_node(tree.children[0], "rule_head", 2, "relation_name", "free_var_name_list")
         assert_correct_node(tree.children[1], "rule_body", 1, "rule_body_relation_list")
@@ -311,13 +362,21 @@ class CheckRuleSafetyVisitor(Visitor_Recursive):
             assert unbound_free_vars
             raise exceptions.RuleNotSafeError(
                 get_error_line_string(tree) + "the following free variables are unbound:\n" + str(unbound_free_vars))
-        # TODO remove this assertion
-        safe_relation_indexes_list = list(safe_relation_indexes)
-        safe_relation_indexes_list.sort()
-        assert safe_relation_indexes_list == list(range(len(rule_body_relations)))
 
 
 class TypeCheckingInterpreter(Interpreter):
+    """
+    A lark tree semantic check.
+    performs the following checks:
+    1. checks if relation references are properly typed.
+    2. checks if ie relations are properly typed.
+    3. checks if free variables in rules do not have conflicting types.
+
+    example for the semantic check failing on check no. 3:
+    new A(str)
+    new B(int)
+    C(X) <- A(X), B(X) # error since X is expected to be both an int and a string
+    """
 
     def __init__(self):
         super().__init__()
@@ -595,29 +654,3 @@ class TypeCheckingInterpreter(Interpreter):
             rule_head_schema.append(var_type)
         rule_head_name = rule_head_name_node.children[0]
         self.relation_name_to_schema[rule_head_name] = rule_head_schema
-
-
-# TODO do this with visitor instead (more efficient)
-@v_args(inline=False)
-class RemoveTokensTransformer(Transformer):
-    def __init__(self):
-        super().__init__(visit_tokens=True)
-
-    def INT(self, args):
-        return int(args[0:])
-
-    def LOWER_CASE_NAME(self, args):
-        return args[0:]
-
-    def UPPER_CASE_NAME(self, args):
-        return args[0:]
-
-    def STRING(self, args):
-        # removes the quotation marks
-        return args[1:-1]
-
-
-class StringVisitor(Visitor_Recursive):
-
-    def string(self, tree):
-        tree.children[0] = tree.children[0].replace('\\\n', '')

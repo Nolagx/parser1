@@ -6,6 +6,9 @@ from lark.visitors import Interpreter, Visitor_Recursive
 
 
 def run_passes(tree, pass_list):
+    """
+    Runs the passes in pass_list on tree, one after another.
+    """
     for cur_pass in pass_list:
         if issubclass(cur_pass, Visitor) or issubclass(cur_pass, Visitor_Recursive) or \
                 issubclass(cur_pass, Interpreter):
