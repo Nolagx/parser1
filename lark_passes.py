@@ -1,7 +1,6 @@
 from lark import Lark, Transformer, v_args, Visitor, Tree
 from lark.visitors import Interpreter, Visitor_Recursive
 from enum import Enum
-import exceptions
 
 NODES_OF_LIST_WITH_VAR_NAMES = {"term_list", "const_term_list"}
 NODES_OF_LIST_WITH_RELATION_NODES = {"rule_body_relation_list"}

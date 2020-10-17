@@ -3,7 +3,7 @@ import graph_converters
 import lark_passes
 from lark import Lark, Transformer, Visitor
 from lark.visitors import Interpreter, Visitor_Recursive
-
+import networkx as nx
 
 def run_passes(tree, pass_list):
     """
@@ -40,39 +40,30 @@ def main():
             lark_passes.CheckRuleSafetyVisitor,
             lark_passes.TypeCheckingInterpreter,
             graph_converters.LarkTreeToNetxTreeConverter,
-            graph_converters.NetxTreeToLarkTreeConverter
+            # graph_converters.NetxTreeToLarkTreeConverter
         ]
         parse_tree = run_passes(parse_tree, passes)
-
-        test_tree = lark_passes.RemoveTokensTransformer().transform(test_tree)
-        lark_passes.StringVisitor().visit(test_tree)
-        lark_passes.CheckReferencedVariablesInterpreter().visit(test_tree)
-        lark_passes.CheckReferencedRelationsInterpreter().visit(test_tree)
-        lark_passes.CheckRuleSafetyVisitor().visit(test_tree)
-        lark_passes.TypeCheckingInterpreter().visit(test_tree)
-        # parse_tree = PyDatalogRepresentationVisitor().visit(parse_tree)
-        print("===================")
-        print(test_tree.pretty())
-        print(test_tree)
-        for child in test_tree.children:
-            print(child)
-
-        non_empty_lines = (line for line in test_input.splitlines() if len(line))
-
-        for line in non_empty_lines:
-            # print(line)
-            print(parser.parse(line))
-
-        # TODO  =========== delete ============
-        print("==========")
-        test_tree = graph_converters.LarkTreeToNetxTreeConverter().convert(test_tree)
-        print(test_tree.pretty())
-        test_tree = graph_converters.NetxTreeToLarkTreeConverter().convert(test_tree)
-        print(parse_tree)
-        print(test_tree.pretty())
-        assert test_tree == parse_tree
-        # TODO  =========== /delete ============
         print(parse_tree.pretty())
+        for node in nx.dfs_preorder_nodes(parse_tree):
+            print(node)
+        # test_tree = lark_passes.RemoveTokensTransformer().transform(test_tree)
+        # lark_passes.StringVisitor().visit(test_tree)
+        # lark_passes.CheckReferencedVariablesInterpreter().visit(test_tree)
+        # lark_passes.CheckReferencedRelationsInterpreter().visit(test_tree)
+        # lark_passes.CheckRuleSafetyVisitor().visit(test_tree)
+        # lark_passes.TypeCheckingInterpreter().visit(test_tree)
+        # parse_tree = PyDatalogRepresentationVisitor().visit(parse_tree)
+        # print("===================")
+        # print(test_tree.pretty())
+        # print(test_tree)
+        # for child in test_tree.children:
+        #     print(child)
+
+        # non_empty_lines = (line for line in test_input.splitlines() if len(line))
+
+        # for line in non_empty_lines:
+            # print(line)
+            # print(parser.parse(line))
 
 
 if __name__ == "__main__":
