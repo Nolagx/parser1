@@ -1,6 +1,12 @@
 from abc import abstractmethod
-
 import networkx as nx
+from enum import Enum
+
+
+class EvalState(Enum):
+    NOT_COMPUTED = 0
+    COMPUTED = 1
+    DIRTY = 2
 
 
 # TODO add nx to package deps
@@ -11,11 +17,15 @@ import networkx as nx
 # TODO: what interface would be comfy for this purpose?
 class TermGraphBase:
     @abstractmethod
-    def add_term(self, name, data):
+    def add_term(self, data):
         pass
 
     @abstractmethod
     def remove_term(self, name):
+        pass
+
+    @abstractmethod
+    def add_dependency(self, name1, name2, data):
         pass
 
     @abstractmethod
@@ -53,14 +63,31 @@ class TermGraphBase:
 class TermGraph(TermGraphBase):  # , MemoryHeap):
     def __init__(self):
         self._g = nx.Graph()
+        self._new_node_id = 0
+        self._roots = []
 
-    def add_term(self, name, attr: dict):  # attr[state / data]
-        # TODO: attr should have data but not state, we set state to not comp
-        # TODO: check if already defined
-        self._g.add_node(node_for_adding=name, attr=attr)
+    def add_root(self, **attr):
+        if 'status' not in attr:
+            attr['status'] = EvalState.NOT_COMPUTED
+        self._roots.append(self._new_node_id)
+        self._g.add_node(node_for_adding=self._new_node_id, **attr)
+        self._new_node_id += 1
+        return self._new_node_id - 1
+
+    def add_term(self, **attr):  # attr[state / data]
+        if 'status' not in attr:
+            attr['status'] = EvalState.NOT_COMPUTED
+        self._g.add_node(node_for_adding=self._new_node_id, **attr)
+        self._new_node_id += 1
+        return self._new_node_id - 1
 
     def remove_term(self, name):
         self._g.remove_node(name)
+
+    def add_dependency(self, name1, name2, **attr):
+        assert name1 in self._g.nodes
+        assert name2 in self._g.nodes
+        self._g.add_edge(name1, name2, **attr)
 
     def get_term_list(self):
         # TODO

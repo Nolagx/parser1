@@ -1,9 +1,14 @@
 from graph_converters import Converter
 import graph_converters
 import lark_passes
+import netx_passes
 from lark import Lark, Transformer, Visitor
 from lark.visitors import Interpreter, Visitor_Recursive
 import networkx as nx
+from symbol_table import SymbolTable
+from term_graph import TermGraph
+from networkx_viewer import Viewer
+
 
 def run_passes(tree, pass_list):
     """
@@ -43,9 +48,20 @@ def main():
             # graph_converters.NetxTreeToLarkTreeConverter
         ]
         parse_tree = run_passes(parse_tree, passes)
-        print(parse_tree.pretty())
-        for node in nx.dfs_preorder_nodes(parse_tree):
-            print(node)
+        # print(parse_tree.pretty_with_nodes())
+        # for node in nx.dfs_preorder_nodes(parse_tree):
+        #     print(node, end=" ")
+        # print()
+        # print("=========")
+        symbol_table = SymbolTable()
+        term_graph = TermGraph()
+        netx_passes.AddNetxTreeToTermGraphPass().visit(parse_tree, term_graph, symbol_table)
+        print(symbol_table._var_to_value)
+        # nx.draw(term_graph._g, with_labels=True, labels=labels)
+        app = Viewer(term_graph._g)
+        app.mainloop()
+        # for node in term_graph._g:
+        #     print(node, term_graph._g.nodes[node])
         # test_tree = lark_passes.RemoveTokensTransformer().transform(test_tree)
         # lark_passes.StringVisitor().visit(test_tree)
         # lark_passes.CheckReferencedVariablesInterpreter().visit(test_tree)
@@ -62,8 +78,8 @@ def main():
         # non_empty_lines = (line for line in test_input.splitlines() if len(line))
 
         # for line in non_empty_lines:
-            # print(line)
-            # print(parser.parse(line))
+        # print(line)
+        # print(parser.parse(line))
 
 
 if __name__ == "__main__":
