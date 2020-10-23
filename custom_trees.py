@@ -52,8 +52,8 @@ class NetxTree(nx.OrderedDiGraph):
         data_attr = nx.get_node_attributes(self, "data")
         value_attr = nx.get_node_attributes(self, "value")
         if len(children) == 1 and children[0] not in data_attr:
-            return [indent_str * level, "(" + str(node) + ")", " ", data_attr[node], '\t'
-                , "(" + str(children[0]) + ")", " ", '%s' % (value_attr[children[0]],), '\n']
+            return [indent_str * level, "(" + str(node) + ")", " ", data_attr[node], '\t',
+                    "(" + str(children[0]) + ")", " ", '%s' % (value_attr[children[0]],), '\n']
         ret = [indent_str * level, "(" + str(node) + ")", " ", data_attr[node], '\n']
         for child_node in children:
             if child_node in data_attr:
@@ -71,3 +71,13 @@ class NetxTree(nx.OrderedDiGraph):
         successors = list(self.successors(node))
         assert len(successors) == 1
         return self.nodes[successors[0]]['value']
+
+    def set_node_value(self, node, value):
+        """
+        used to set a value of a node that has a single child who has a value attribute
+        """
+        successors = list(self.successors(node))
+        assert len(successors) == 1
+        value_node = successors[0]
+        assert 'value' in self.nodes[value_node]
+        self.nodes[value_node]['value'] = value
