@@ -9,5 +9,38 @@ class Span:
         print(self.__str__())
 
     def __str__(self):
-        """for now we print it as a tuple because of pydatalog's limitations"""
+        return "[" + str(self.left_num) + ", " + str(self.right_num) + ")"
+
+    def get_pydatalog_representation(self):
         return "(" + str(self.left_num) + ", " + str(self.right_num) + ")"
+
+
+class Relation:
+
+    def __init__(self, name, terms):
+        self.name = name
+        self.terms = terms
+
+    def get_string_representation(self):
+        ret = self.name + "("
+        for idx, term in enumerate(self.terms):
+            ret += str(term)
+            if idx < len(self.terms) - 1:
+                ret += ", "
+        ret += ")"
+        return ret
+
+    def get_pydatalog_representation(self):
+        ret = self.name + "("
+        for idx, term in enumerate(self.terms):
+            if isinstance(term, Span):
+                ret += term.get_pydatalog_representation()
+            else:
+                ret += str(term)
+            if idx < len(self.terms) - 1:
+                ret += ", "
+        ret += ")"
+        return ret
+
+    def __repr__(self):
+        return self.get_string_representation()

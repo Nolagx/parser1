@@ -2,24 +2,6 @@ from lark import Lark, Transformer, v_args, Visitor, Tree
 from lark.visitors import Interpreter, Visitor_Recursive
 import pyDatalog
 
-class Relation:
-    def __init__(self, name, terms):
-        self.name = name
-        self.terms = terms
-
-    def get_string_representation(self):
-        ret = self.name + "("
-        for idx, term in enumerate(self.terms):
-            ret += term
-            if idx < len(self.terms) - 1:
-                ret += ", "
-        ret += ")"
-        return ret
-
-    def __repr__(self):
-        return self.get_string_representation()
-
-
 class Span:
     def __init__(self, start, stop):
         self.start = start

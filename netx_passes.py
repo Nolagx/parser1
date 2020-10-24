@@ -57,7 +57,7 @@ class ResolveVariablesPass(NetxEnginePass):
         super().__init__()
 
     @staticmethod
-    def __get_span_representation_of_node(netx_tree, symbol_table, span_node):
+    def __get_span_value_of_node(netx_tree, symbol_table, span_node):
         # currently only supports spans with literal values
         assert_correct_node(netx_tree, span_node, "span", 2, "integer", "integer")
         successors = list(netx_tree.successors(span_node))
@@ -69,21 +69,19 @@ class ResolveVariablesPass(NetxEnginePass):
 
     def visit(self, netx_tree: NetxTree, term_graph: TermGraph, symbol_table: SymbolTable):
         data_attr = nx.get_node_attributes(netx_tree, "data")
+        nodes_to_remove = set()
         for node in nx.dfs_preorder_nodes(netx_tree):
             if node not in data_attr:
                 continue
             successors = list(netx_tree.successors(node))
-            # TODO read values
-
             if data_attr[node] == "span":
                 # convert span to a complex value, this is done here as span might contain variables in future updates
                 assert_correct_node(netx_tree, node, "span", 2, "integer", "integer")
-                span_value = self.__get_span_representation_of_node(netx_tree, symbol_table, node)
+                span_value = self.__get_span_value_of_node(netx_tree, symbol_table, node)
                 value_node = successors[0]
-                # del netx_tree.nodes[value_node]['data']
-                # netx_tree.nodes[value_node]['value'] = span_value
-                # netx_tree.remove_node(successors[0])
-                # netx_tree.remove_node(successors[1])
+                netx_tree.nodes[value_node].clear()
+                netx_tree.nodes[value_node]['value'] = span_value
+                nodes_to_remove.add(successors[1])
             if data_attr[node] == "assign_literal_string":
                 assert_correct_node(netx_tree, node, "assign_literal_string", 2, "var_name", "string")
                 var_name = netx_tree.get_node_value(successors[0])
@@ -98,12 +96,8 @@ class ResolveVariablesPass(NetxEnginePass):
                 assert_correct_node(netx_tree, node, "assign_span", 2, "var_name", "span")
                 assert_correct_node(netx_tree, successors[1], "span", 2, "integer", "integer")
                 var_name = netx_tree.get_node_value(successors[0])
-                span_nodes = list(netx_tree.successors(successors[1]))
-                assert_correct_node(netx_tree, span_nodes[0], "integer")
-                assert_correct_node(netx_tree, span_nodes[1], "integer")
-                left_num = netx_tree.get_node_value(span_nodes[0])
-                right_num = netx_tree.get_node_value(span_nodes[1])
-                symbol_table.set_var_type_and_value(var_name, "span", Span(left_num, right_num))
+                span_value = self.__get_span_value_of_node(netx_tree, symbol_table, successors[1])
+                symbol_table.set_var_type_and_value(var_name, "span", span_value)
             if data_attr[node] == "assign_var":
                 assert_correct_node(netx_tree, node, "assign_var", 2, "var_name", "var_name")
                 left_var = netx_tree.get_node_value(successors[0])
@@ -120,6 +114,36 @@ class ResolveVariablesPass(NetxEnginePass):
                         var_value = symbol_table.get_variable_value(var_name)
                         netx_tree.nodes[term_node]['data'] = var_type
                         netx_tree.set_node_value(term_node, var_value)
+            # TODO the from string from rgx_relation, depending on the syntax that is decided
+        # can only remove nodes after the iteration
+        for node in nodes_to_remove:
+            netx_tree.remove_node(node)
+
+
+class SimplifyRelationsPass(NetxPass):
+    """
+    this pass redefines each relation in the tree using classes from 'complex_values.py' file
+    For example, a normal relation will be represented by a single node containing a complex_values.Relation
+    instance as a value (instead of the default grammar representation that contains multiple nodes)
+    """
+
+    def __init__(self):
+        super().__init__()
+
+    def visit(self, netx_tree: NetxTree):
+        # TODO ie_relations, rgx relations after syntax is decided
+        data_attr = nx.get_node_attributes(netx_tree, "data")
+        nodes_to_remove = set()
+        for node in nx.dfs_preorder_nodes(netx_tree):
+            if node not in data_attr:
+                continue
+            successors = list(netx_tree.successors(node))
+            if data_attr[node] == "relation":
+                assert_correct_node(netx_tree, node, "relation", 2, "relation_name", "term_list")
+
+        # can only remove nodes after the iteration
+        for node in nodes_to_remove:
+            netx_tree.remove_node(node)
 
 
 class AddNetxTreeToTermGraphPass(NetxEnginePass):
