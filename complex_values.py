@@ -11,7 +11,7 @@ class Span:
     def __str__(self):
         return "[" + str(self.left_num) + ", " + str(self.right_num) + ")"
 
-    def get_pydatalog_representation(self):
+    def get_pydatalog_string(self):
         return "(" + str(self.left_num) + ", " + str(self.right_num) + ")"
 
 
@@ -30,11 +30,11 @@ class Relation:
         ret += ")"
         return ret
 
-    def get_pydatalog_representation(self):
+    def get_pydatalog_string(self):
         ret = self.name + "("
         for idx, term in enumerate(self.terms):
             if isinstance(term, Span):
-                ret += term.get_pydatalog_representation()
+                ret += term.get_pydatalog_string()
             else:
                 ret += str(term)
             if idx < len(self.terms) - 1:

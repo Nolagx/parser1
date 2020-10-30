@@ -6,29 +6,33 @@ class NetxTree(nx.OrderedDiGraph):
     A class that defines a Networkx tree
     """
 
-    def __init__(self, root=0):
+    def __init__(self):
         super().__init__()
-        self.__root = root
+        self._root = None
 
     def set_root(self, root):
-        self.__root = root
+        if root not in self.nodes:
+            raise Exception("root is not in the graph.")
+        self._root = root
 
     def get_root(self):
-        return self.__root
+        if self._root is None:
+            raise Exception("root was not defined. Define it with set_root() first")
+        return self._root
 
     def pretty(self, indent_str='  '):
         """
         prints a representation of the networkx tree.
         Works similarly to lark's pretty() function.
         """
-        return ''.join(self._pretty(self.__root, 0, indent_str))
+        return ''.join(self._pretty(self._root, 0, indent_str))
 
     def pretty_with_nodes(self, indent_str='  '):
         """
         prints a representation of the networkx tree.
         Works similarly to lark's pretty() function.
         """
-        return ''.join(self._pretty_with_nodes(self.__root, 0, indent_str))
+        return ''.join(self._pretty_with_nodes(self._root, 0, indent_str))
 
     def _pretty(self, node, level, indent_str):
         children = list(self.successors(node))

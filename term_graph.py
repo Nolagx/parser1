@@ -1,5 +1,6 @@
 from abc import abstractmethod
 import networkx as nx
+from custom_trees import NetxTree
 from enum import Enum
 
 
@@ -16,8 +17,13 @@ class EvalState(Enum):
 # TODO: they would happen on the entire term graph (global optimizations)
 # TODO: what interface would be comfy for this purpose?
 class TermGraphBase:
+
     @abstractmethod
     def add_term(self, data):
+        pass
+
+    @abstractmethod
+    def get_root(self):
         pass
 
     @abstractmethod
@@ -60,19 +66,13 @@ class TermGraphBase:
         pass
 
 
-class TermGraph(TermGraphBase):  # , MemoryHeap):
+class NetxTermGraph(TermGraphBase):  # , MemoryHeap):
     def __init__(self):
-        self._g = nx.Graph()
-        self._new_node_id = 0
-        self._roots = []
-
-    def add_root(self, **attr):
-        if 'status' not in attr:
-            attr['status'] = EvalState.NOT_COMPUTED
-        self._roots.append(self._new_node_id)
-        self._g.add_node(node_for_adding=self._new_node_id, **attr)
-        self._new_node_id += 1
-        return self._new_node_id - 1
+        self._g = nx.OrderedDiGraph()
+        self._root = 0
+        # the root of the whole term graph. will be used as a source for bfs/dfs in term graph transformers
+        self._g.add_node(node_for_adding=self._root, type="main_root")
+        self._new_node_id = 1
 
     def add_term(self, **attr):  # attr[state / data]
         if 'status' not in attr:
@@ -80,6 +80,9 @@ class TermGraph(TermGraphBase):  # , MemoryHeap):
         self._g.add_node(node_for_adding=self._new_node_id, **attr)
         self._new_node_id += 1
         return self._new_node_id - 1
+
+    def get_root(self):
+        return self._root
 
     def remove_term(self, name):
         self._g.remove_node(name)
@@ -93,14 +96,16 @@ class TermGraph(TermGraphBase):  # , MemoryHeap):
         # TODO
         pass
 
+    # TODO use state in implementation instead of status after debugging (can't use state with networkx_viewer)
     def get_term_state(self, name):
         return self._g.nodes[name]['state']
 
     def get_term_data(self, name):
-        return self._g.nodes[name]['data']
+        # TODO
+        pass
 
     def transform_term_data(self, name, transformer):
         return transformer(self._g.nodes[name])
 
     def transform_graph(self, transformer):
-        return transformer(self._g)
+        return transformer(self._g, self._root)

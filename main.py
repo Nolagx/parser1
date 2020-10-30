@@ -6,7 +6,7 @@ from lark import Lark, Transformer, Visitor
 from lark.visitors import Interpreter, Visitor_Recursive
 import networkx as nx
 from symbol_table import SymbolTable
-from term_graph import TermGraph
+from term_graph import NetxTermGraph
 from networkx_viewer import Viewer
 
 
@@ -54,13 +54,15 @@ def main():
         # print()
         # print("=========")
         symbol_table = SymbolTable()
-        term_graph = TermGraph()
+        term_graph = NetxTermGraph()
         netx_passes.ResolveVariablesPass().visit(parse_tree, term_graph, symbol_table)
+        netx_passes.SimplifyRelationsPass().visit(parse_tree)
+        netx_passes.AddNetxTreeToTermGraphPass().visit(parse_tree, term_graph, symbol_table)
         print(symbol_table)
         print(parse_tree.pretty())
         # nx.draw(term_graph._g, with_labels=True, labels=labels)
-        # app = Viewer(term_graph._g)
-        # app.mainloop()
+        app = Viewer(term_graph._g)
+        app.mainloop()
         # for node in term_graph._g:
         #     print(node, term_graph._g.nodes[node])
         # test_tree = lark_passes.RemoveTokensTransformer().transform(test_tree)
