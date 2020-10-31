@@ -3,8 +3,11 @@ from custom_trees import NetxTree
 from abc import ABC, abstractmethod
 from term_graph import NetxTermGraph, EvalState
 from symbol_table import SymbolTable
-from complex_values import Span, Relation
+from complex_values import Span, Relation, RelationDeclaration
+from enums import VarTypes
 
+# TODO remove data_attr and the likes (can cause bugs)
+# TODO check if the dfs commands are okay
 
 def assert_correct_node(netx_tree: NetxTree, node, node_name, len_children=None, *children_names):
     nodes = netx_tree.nodes
@@ -144,12 +147,34 @@ class SimplifyRelationsPass(NetxPass):
                 terms = []
                 term_list_nodes = list(netx_tree.successors(successors[1]))
                 for term_node in term_list_nodes:
-                    terms.append(netx_tree.get_node_value(term_node))
+                    if data_attr[term_node] == 'string':
+                        terms.append('"' + netx_tree.get_node_value(term_node) + '"')
+                    else:
+                        terms.append(netx_tree.get_node_value(term_node))
                 relation_value = Relation(relation_name, terms)
                 netx_tree.nodes[successors[0]].clear()
                 netx_tree.nodes[successors[0]]['value'] = relation_value
                 nodes_to_remove.append(successors[1])
                 nodes_to_remove.extend(term_list_nodes[1:])
+            if data_attr[node] == "relation_declaration":
+                assert_correct_node(netx_tree, node, "relation_declaration", 2, "relation_name", "decl_term_list")
+                relation_name = netx_tree.get_node_value(successors[0])
+                schema_nodes = list(netx_tree.successors(successors[1]))
+                relation_schema = []
+                for schema_node in schema_nodes:
+                    schema_node_type = netx_tree.nodes[schema_node]['data']
+                    if schema_node_type == "decl_string":
+                        relation_schema.append(VarTypes.STRING)
+                    elif schema_node_type == "decl_span":
+                        relation_schema.append(VarTypes.SPAN)
+                    elif schema_node_type == "decl_int":
+                        relation_schema.append(VarTypes.INT)
+                    else:
+                        assert 0
+                    netx_tree.nodes[successors[0]].clear()
+                    netx_tree.nodes[successors[0]]['value'] = RelationDeclaration(relation_name, relation_schema)
+                nodes_to_remove.append(successors[1])
+                nodes_to_remove.extend(schema_nodes)
 
         # can only remove nodes after the iteration
         for node in nodes_to_remove:
@@ -172,7 +197,7 @@ class AddNetxTreeToTermGraphPass(NetxEnginePass):
                 continue
             successors = list(netx_tree.successors(node))
             node_type = data_attr[node]
-            if node_type in ["add_fact", "remove_fact"]:
+            if node_type in ["add_fact", "remove_fact", "relation_declaration"]:
                 relation_value = netx_tree.get_node_value(node)
                 new_node = term_graph.add_term(type=node_type, value=relation_value)
                 term_graph.add_dependency(self.term_graph_root, new_node)
@@ -201,7 +226,6 @@ class AddNetxTreeToTermGraphPass(NetxEnginePass):
                                                                       value=rule_body_relation_value)
                     term_graph.add_dependency(new_rule_body_node, new_rule_body_relation_node)
 
-
 # class AddNetxTreeToTermGraphPass(NetxEnginePass):
 #
 #     def __init__(self):
@@ -217,7 +241,7 @@ class AddNetxTreeToTermGraphPass(NetxEnginePass):
 #         new_node = term_graph.add_term(type='assignment', debug=var_name)
 #         # symbol_table.set_variable_value(var_name, new_node)
 #         term_graph.add_dependency(self.term_graph_root, new_node)
-#         value_node = term_graph.add_term(type='const', value=value, status=EvalState.COMPUTED)
+#         value_node = term_graph.add_term(type='const', value=value, state=EvalState.COMPUTED)
 #         term_graph.add_dependency(new_node, value_node)
 #
 #     def visit(self, netx_tree: NetxTree, term_graph: TermGraph, symbol_table: SymbolTable):

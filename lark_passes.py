@@ -1,6 +1,6 @@
 from lark import Lark, Transformer, v_args, Visitor, Tree
 from lark.visitors import Interpreter, Visitor_Recursive
-from enum import Enum
+from enums import VarTypes
 
 NODES_OF_LIST_WITH_VAR_NAMES = {"term_list", "const_term_list"}
 NODES_OF_LIST_WITH_RELATION_NODES = {"rule_body_relation_list"}
@@ -8,12 +8,6 @@ NODES_OF_LIST_WITH_FREE_VAR_NAMES = {"term_list", "free_var_name_list"}
 NODES_OF_TERM_LISTS = {"term_list", "const_term_list"}
 NODES_OF_RULE_BODY_TERM_LISTS = {"term_list"}
 SCHEMA_DEFINING_NODES = {"decl_term_list", "free_var_name_list"}
-
-
-class VarTypes(Enum):
-    STRING = 0
-    SPAN = 1
-    INT = 2
 
 
 def assert_correct_node(tree, node_name, len_children=None, *children_names):

@@ -1,12 +1,12 @@
+from enums import VarTypes
+
+
 class Span:
     """a representation of a span"""
 
     def __init__(self, left_num, right_num):
         self.left_num = left_num
         self.right_num = right_num
-
-    def __repr__(self):
-        print(self.__str__())
 
     def __str__(self):
         return "[" + str(self.left_num) + ", " + str(self.right_num) + ")"
@@ -21,7 +21,7 @@ class Relation:
         self.name = name
         self.terms = terms
 
-    def get_string_representation(self):
+    def __str__(self):
         ret = self.name + "("
         for idx, term in enumerate(self.terms):
             ret += str(term)
@@ -42,5 +42,25 @@ class Relation:
         ret += ")"
         return ret
 
-    def __repr__(self):
-        return self.get_string_representation()
+
+class RelationDeclaration:
+
+    def __init__(self, name, schema):
+        self.name = name
+        self.schema = schema
+
+    def __str__(self):
+        ret = self.name + "("
+        for idx, term in enumerate(self.schema):
+            if term == VarTypes.STRING:
+                ret += 'str'
+            elif term == VarTypes.SPAN:
+                ret += 'spn'
+            elif term == VarTypes.INT:
+                ret += "int"
+            else:
+                assert 0
+            if idx < len(self.schema) - 1:
+                ret += ", "
+        ret += ")"
+        return ret

@@ -8,7 +8,7 @@ import networkx as nx
 from symbol_table import SymbolTable
 from term_graph import NetxTermGraph
 from networkx_viewer import Viewer
-
+import execution
 
 def run_passes(tree, pass_list):
     """
@@ -33,7 +33,7 @@ def main():
         # parser = Lark(grammar, parser='lalr', transformer=CalculateTree2())
         parser = Lark(grammar, parser='lalr', debug=True, propagate_positions=True)
 
-        test_input = open("test_input2").read()
+        test_input = open("test_input3").read()
         parse_tree = parser.parse(test_input)
         test_tree = parse_tree.copy()
 
@@ -58,11 +58,16 @@ def main():
         netx_passes.ResolveVariablesPass().visit(parse_tree, term_graph, symbol_table)
         netx_passes.SimplifyRelationsPass().visit(parse_tree)
         netx_passes.AddNetxTreeToTermGraphPass().visit(parse_tree, term_graph, symbol_table)
-        print(symbol_table)
-        print(parse_tree.pretty())
+        execution_engine = execution.NetworkxExecution(execution.PydatalogEngine(), None)
+        print(term_graph)
+        term_graph.transform_graph(execution_engine)
+        print(term_graph)
+        # print("=============\n", term_graph)
+        # print(symbol_table)
+        # print(parse_tree.pretty())
         # nx.draw(term_graph._g, with_labels=True, labels=labels)
-        app = Viewer(term_graph._g)
-        app.mainloop()
+        # app = Viewer(term_graph._g)
+        # app.mainloop()
         # for node in term_graph._g:
         #     print(node, term_graph._g.nodes[node])
         # test_tree = lark_passes.RemoveTokensTransformer().transform(test_tree)

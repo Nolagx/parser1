@@ -75,8 +75,8 @@ class NetxTermGraph(TermGraphBase):  # , MemoryHeap):
         self._new_node_id = 1
 
     def add_term(self, **attr):  # attr[state / data]
-        if 'status' not in attr:
-            attr['status'] = EvalState.NOT_COMPUTED
+        if 'state' not in attr:
+            attr['state'] = EvalState.NOT_COMPUTED
         self._g.add_node(node_for_adding=self._new_node_id, **attr)
         self._new_node_id += 1
         return self._new_node_id - 1
@@ -108,4 +108,44 @@ class NetxTermGraph(TermGraphBase):  # , MemoryHeap):
         return transformer(self._g.nodes[name])
 
     def transform_graph(self, transformer):
-        return transformer(self._g, self._root)
+        return transformer.transform(self._g, self._root)
+
+    def _get_node_string(self, node):
+        assert node in self._g.nodes
+        assert 'type' in self._g.nodes[node]
+        ret = '(' + str(node) + ') '
+        if 'state' in self._g.nodes[node]:
+            state = self._g.nodes[node]['state']
+            if state == EvalState.COMPUTED:
+                ret += '(computed) '
+            elif state == EvalState.NOT_COMPUTED:
+                ret += '(not computed) '
+            elif state == EvalState.DIRTY:
+                ret += '(dirty) '
+            else:
+                assert 0
+        ret += self._g.nodes[node]['type']
+        if 'value' in self._g.nodes[node]:
+            ret += ': ' + str(self._g.nodes[node]['value'])
+        return ret
+
+    def _pretty(self, node, level, indent_str):
+        children = list(self._g.successors(node))
+        if len(children) == 0:
+            return [indent_str * level, self._get_node_string(node), '\n']
+
+        ret = [indent_str * level, self._get_node_string(node), '\n']
+        for child_node in children:
+            ret += self._pretty(child_node, level + 1, indent_str)
+
+        return ret
+
+    def pretty(self, indent_str='  '):
+        """
+        prints a representation of the networkx tree.
+        Works similarly to lark's pretty() function.
+        """
+        return ''.join(self._pretty(self._root, 0, indent_str))
+
+    def __str__(self):
+        return self.pretty()
