@@ -114,14 +114,8 @@ class CheckReferencedVariablesInterpreter(Interpreter):
         assert_correct_node(tree, "remove_fact", 2, "relation_name", "const_term_list")
         self.__check_if_vars_in_list_not_defined(tree.children[1])
 
-    def rgx_ie_relation(self, tree):
-        assert_correct_node(tree, "rgx_ie_relation", 3, "term_list", "term_list", "var_name")
-        self.__check_if_vars_in_list_not_defined(tree.children[0])
-        self.__check_if_vars_in_list_not_defined(tree.children[1])
-        self.__check_if_var_not_defined(tree.children[2])
-
-    def func_ie_relation(self, tree):
-        assert_correct_node(tree, "func_ie_relation", 3, "function_name", "term_list", "term_list")
+    def ie_relation(self, tree):
+        assert_correct_node(tree, "ie_relation", 3, "relation_name", "term_list", "term_list")
         self.__check_if_vars_in_list_not_defined(tree.children[1])
         self.__check_if_vars_in_list_not_defined(tree.children[2])
 
@@ -218,12 +212,8 @@ class CheckReferencedIERelationsVisitor(Visitor_Recursive):
     def __init__(self, **kw):
         super().__init__()
 
-    def func_ie_relation(self, tree):
-        assert_correct_node(tree, "func_ie_relation", 3, "function_name", "term_list", "term_list")
-        # TODO
-
-    def rgx_ie_relation(self, tree):
-        assert_correct_node(tree, "rgx_ie_relation", 3, "term_list", "term_list", "var_name")
+    def ie_relation(self, tree):
+        assert_correct_node(tree, "ie_relation", 3, "relation_name", "term_list", "term_list")
         # TODO
 
 
@@ -276,23 +266,21 @@ class CheckRuleSafetyVisitor(Visitor_Recursive):
         if relation_node.data == "relation":
             assert_correct_node(relation_node, "relation", 2, "relation_name", "term_list")
             return set()  # normal relations don't have an input
-        elif relation_node.data == "func_ie_relation":
-            assert_correct_node(relation_node, "func_ie_relation", 3, "function_name", "term_list", "term_list")
+        elif relation_node.data == "ie_relation":
+            assert_correct_node(relation_node, "ie_relation", 3, "relation_name", "term_list", "term_list")
             return self.__get_set_of_free_var_names(relation_node.children[1])
         else:
-            assert_correct_node(relation_node, "rgx_ie_relation", 3, "term_list", "term_list", "var_name")
-            return self.__get_set_of_free_var_names(relation_node.children[0])
+            assert 0
 
     def __get_set_of_output_free_var_names(self, relation_node):
         if relation_node.data == "relation":
             assert_correct_node(relation_node, "relation", 2, "relation_name", "term_list")
             return self.__get_set_of_free_var_names(relation_node.children[1])
-        elif relation_node.data == "func_ie_relation":
-            assert_correct_node(relation_node, "func_ie_relation", 3, "function_name", "term_list", "term_list")
+        elif relation_node.data == "ie_relation":
+            assert_correct_node(relation_node, "ie_relation", 3, "relation_name", "term_list", "term_list")
             return self.__get_set_of_free_var_names(relation_node.children[2])
         else:
-            assert_correct_node(relation_node, "rgx_ie_relation", 3, "term_list", "term_list", "var_name")
-            return self.__get_set_of_free_var_names(relation_node.children[1])
+            assert 0
 
     def rule(self, tree):
         assert_correct_node(tree, "rule", 2, "rule_head", "rule_body")
@@ -360,23 +348,21 @@ class ReorderRuleBodyVisitor(Visitor_Recursive):
         if relation_node.data == "relation":
             assert_correct_node(relation_node, "relation", 2, "relation_name", "term_list")
             return set()  # normal relations don't have an input
-        elif relation_node.data == "func_ie_relation":
-            assert_correct_node(relation_node, "func_ie_relation", 3, "function_name", "term_list", "term_list")
+        elif relation_node.data == "ie_relation":
+            assert_correct_node(relation_node, "ie_relation", 3, "relation_name", "term_list", "term_list")
             return self.__get_set_of_free_var_names(relation_node.children[1])
         else:
-            assert_correct_node(relation_node, "rgx_ie_relation", 3, "term_list", "term_list", "var_name")
-            return self.__get_set_of_free_var_names(relation_node.children[0])
+            assert 0
 
     def __get_set_of_output_free_var_names(self, relation_node):
         if relation_node.data == "relation":
             assert_correct_node(relation_node, "relation", 2, "relation_name", "term_list")
             return self.__get_set_of_free_var_names(relation_node.children[1])
-        elif relation_node.data == "func_ie_relation":
-            assert_correct_node(relation_node, "func_ie_relation", 3, "function_name", "term_list", "term_list")
+        elif relation_node.data == "ie_relation":
+            assert_correct_node(relation_node, "ie_relation", 3, "relation_name", "term_list", "term_list")
             return self.__get_set_of_free_var_names(relation_node.children[2])
         else:
-            assert_correct_node(relation_node, "rgx_ie_relation", 3, "term_list", "term_list", "var_name")
-            return self.__get_set_of_free_var_names(relation_node.children[1])
+            assert 0
 
     def rule(self, tree):
         assert_correct_node(tree, "rule", 2, "rule_head", "rule_body")
@@ -593,12 +579,11 @@ class TypeCheckingInterpreter(Interpreter):
                 term_list_node = relation_node.children[1]
                 schema = self.__get_relation_schema(relation_name_node)
                 self.__type_check_rule_body_term_list(term_list_node, schema, free_var_to_type)
-            elif relation_node.data == "func_ie_relation":
-                assert_correct_node(relation_node, "func_ie_relation", 3, "function_name", "term_list", "term_list")
+            elif relation_node.data == "ie_relation":
+                assert_correct_node(relation_node, "ie_relation", 3, "relation_name", "term_list", "term_list")
                 # TODO
             else:
-                assert_correct_node(relation_node, "rgx_ie_relation", 3, "term_list", "term_list", "var_name")
-                # TODO
+                assert 0
 
         # no issues were found, add the new schema to the schema dict
         rule_head_schema = []
