@@ -37,7 +37,7 @@ def main():
         # parser = Lark(grammar, parser='lalr', transformer=CalculateTree2())
         parser = Lark(grammar, parser='lalr', debug=True, propagate_positions=True)
 
-        test_input = open("test_input3").read()
+        test_input = open("test_input2").read()
         test_input2 = open("test_input5").read()
         parse_tree = parser.parse(test_input)
         # parse_tree2 = parser.parse(test_input2)

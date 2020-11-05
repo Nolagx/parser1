@@ -79,7 +79,7 @@ class CheckReferencedVariablesInterpreter(Interpreter):
     def __check_if_var_not_defined(self, var_name_node):
         assert_correct_node(var_name_node, "var_name", 1)
         var_name = var_name_node.children[0]
-        if var_name not in self.vars and not self.symbol_table.contains_var(var_name):
+        if var_name not in self.vars and not self.symbol_table.contains_variable(var_name):
             raise Exception
 
     def __check_if_vars_in_list_not_defined(self, tree):
@@ -358,7 +358,7 @@ class TypeCheckingInterpreter(Interpreter):
     def __get_var_type(self, var_name_node):
         assert_correct_node(var_name_node, "var_name", 1)
         var_name = var_name_node.children[0]
-        assert var_name in self.var_name_to_type or self.symbol_table.contains_var(var_name)
+        assert var_name in self.var_name_to_type or self.symbol_table.contains_variable(var_name)
         if var_name in self.var_name_to_type:
             return self.var_name_to_type[var_name]
         else:

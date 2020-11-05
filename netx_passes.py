@@ -98,7 +98,8 @@ class ResolveVariablesPass(NetxEnginePass):
                     value_node = list(netx_tree.successors(successors[1]))[0]
                     assigned_value = netx_tree.nodes[value_node]['value']
                     assigned_type = get_datatype_enum(value_node_type)
-                symbol_table.set_var_type_and_value(left_var_name, assigned_type, assigned_value)
+                symbol_table.set_variable_type(left_var_name, assigned_type)
+                symbol_table.set_variable_value(left_var_name, assigned_value)
             if data_attr[node] == "read_assignment":
                 # TODO
                 pass
