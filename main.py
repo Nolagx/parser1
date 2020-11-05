@@ -51,6 +51,7 @@ def main():
             lark_passes.CheckReferencedRelationsInterpreter,
             lark_passes.CheckRuleSafetyVisitor,
             lark_passes.TypeCheckingInterpreter,
+            lark_passes.ReorderRuleBodyVisitor,
             graph_converters.LarkTreeToNetxTreeConverter,
         ]
         parse_tree = run_passes(parse_tree, passes)
@@ -67,7 +68,7 @@ def main():
 
         execution_engine = execution.NetworkxExecution(execution.PydatalogEngine(), None)
         term_graph.transform_graph(execution_engine)
-
+        print(term_graph)
         # parse_tree2 = run_passes(parse_tree2, passes)
         # netx_passes.ResolveVariablesPass().visit(parse_tree2, term_graph, symbol_table)
         # netx_passes.SimplifyRelationsPass().visit(parse_tree2)

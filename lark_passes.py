@@ -320,22 +320,91 @@ class CheckRuleSafetyVisitor(Visitor_Recursive):
         # initialize assuming every relation is unsafe and every free variable is unbound
         safe_relation_indexes = set()
         bound_free_vars = set()
-        found_safe_relation_in_cur_iter = True
-        while len(safe_relation_indexes) != len(rule_body_relations) \
-                and found_safe_relation_in_cur_iter:
-            found_safe_relation_in_cur_iter = False
+        found_safe_relation = True
+        while len(safe_relation_indexes) != len(rule_body_relations) and found_safe_relation:
+            found_safe_relation = False
             for idx, relation_node in enumerate(rule_body_relations):
                 if idx not in safe_relation_indexes:
                     input_free_vars = self.__get_set_of_input_free_var_names(relation_node)
                     unbound_free_vars = input_free_vars.difference(bound_free_vars)
                     if not unbound_free_vars:
                         # relation is safe, mark all of its output variables as bound
-                        found_safe_relation_in_cur_iter = True
+                        found_safe_relation = True
                         output_free_vars = self.__get_set_of_output_free_var_names(relation_node)
                         bound_free_vars = bound_free_vars.union(output_free_vars)
                         safe_relation_indexes.add(idx)
         if len(safe_relation_indexes) != len(rule_body_relations):
             raise Exception
+
+
+class ReorderRuleBodyVisitor(Visitor_Recursive):
+    """
+    Reorders each rule body so that each relation in the rule body has its input free variables bound by
+    the relations to its right.
+    """
+
+    def __init__(self, **kw):
+        super().__init__()
+
+    @staticmethod
+    def __get_set_of_free_var_names(list_node):
+        assert list_node.data in NODES_OF_LIST_WITH_FREE_VAR_NAMES
+        free_var_names = set()
+        for term_node in list_node.children:
+            if term_node.data == "free_var_name":
+                assert_correct_node(term_node, "free_var_name", 1)
+                free_var_names.add(term_node.children[0])
+        return free_var_names
+
+    def __get_set_of_input_free_var_names(self, relation_node):
+        if relation_node.data == "relation":
+            assert_correct_node(relation_node, "relation", 2, "relation_name", "term_list")
+            return set()  # normal relations don't have an input
+        elif relation_node.data == "func_ie_relation":
+            assert_correct_node(relation_node, "func_ie_relation", 3, "function_name", "term_list", "term_list")
+            return self.__get_set_of_free_var_names(relation_node.children[1])
+        else:
+            assert_correct_node(relation_node, "rgx_ie_relation", 3, "term_list", "term_list", "var_name")
+            return self.__get_set_of_free_var_names(relation_node.children[0])
+
+    def __get_set_of_output_free_var_names(self, relation_node):
+        if relation_node.data == "relation":
+            assert_correct_node(relation_node, "relation", 2, "relation_name", "term_list")
+            return self.__get_set_of_free_var_names(relation_node.children[1])
+        elif relation_node.data == "func_ie_relation":
+            assert_correct_node(relation_node, "func_ie_relation", 3, "function_name", "term_list", "term_list")
+            return self.__get_set_of_free_var_names(relation_node.children[2])
+        else:
+            assert_correct_node(relation_node, "rgx_ie_relation", 3, "term_list", "term_list", "var_name")
+            return self.__get_set_of_free_var_names(relation_node.children[1])
+
+    def rule(self, tree):
+        assert_correct_node(tree, "rule", 2, "rule_head", "rule_body")
+        assert_correct_node(tree.children[1], "rule_body", 1, "rule_body_relation_list")
+        rule_body_relation_list_node = tree.children[1].children[0]
+        assert_correct_node(rule_body_relation_list_node, "rule_body_relation_list")
+        rule_body_relations = rule_body_relation_list_node.children
+        # initialize assuming every relation is unsafe and every free variable is unbound
+        reordered_relations = []
+        reordered_relations_idx = set()
+        bound_free_vars = set()
+        found_safe_relation = True
+        while len(reordered_relations) != len(rule_body_relations) and found_safe_relation:
+            found_safe_relation = False
+            for idx, relation_node in enumerate(rule_body_relations):
+                if idx not in reordered_relations_idx:
+                    input_free_vars = self.__get_set_of_input_free_var_names(relation_node)
+                    unbound_free_vars = input_free_vars.difference(bound_free_vars)
+                    if not unbound_free_vars:
+                        # relation is safe, mark all of its output variables as bound
+                        found_safe_relation = True
+                        output_free_vars = self.__get_set_of_output_free_var_names(relation_node)
+                        bound_free_vars = bound_free_vars.union(output_free_vars)
+                        reordered_relations_idx.add(idx)
+                        reordered_relations.append(relation_node)
+        if len(reordered_relations) != len(rule_body_relations):
+            raise Exception
+        rule_body_relation_list_node.children = reordered_relations
 
 
 class TypeCheckingInterpreter(Interpreter):

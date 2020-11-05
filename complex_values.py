@@ -1,6 +1,15 @@
 from datatypes import DataTypes
 
 
+def get_term_list_string(term_list):
+    ret = ""
+    for idx, term in enumerate(term_list):
+        ret += str(term)
+        if idx < len(term_list) - 1:
+            ret += ", "
+    return ret
+
+
 class Span:
     """a representation of a span"""
 
@@ -22,12 +31,7 @@ class Relation:
         self.terms = terms
 
     def __str__(self):
-        ret = self.name + "("
-        for idx, term in enumerate(self.terms):
-            ret += str(term)
-            if idx < len(self.terms) - 1:
-                ret += ", "
-        ret += ")"
+        ret = self.name + "(" + get_term_list_string(self.terms) + ")"
         return ret
 
     def get_pydatalog_string(self):
@@ -40,6 +44,18 @@ class Relation:
             if idx < len(self.terms) - 1:
                 ret += ", "
         ret += ")"
+        return ret
+
+
+class IERelation:
+    def __init__(self, name, input_terms, output_terms):
+        self.name = name
+        self.input_terms = input_terms
+        self.output_terms = output_terms
+
+    def __str__(self):
+        ret = self.name + "(" + get_term_list_string(self.input_terms) + ")" + " -> " \
+              + "(" + get_term_list_string(self.output_terms) + ")"
         return ret
 
 
