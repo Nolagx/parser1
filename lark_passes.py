@@ -30,7 +30,7 @@ class RemoveTokensTransformer(Transformer):
     should be used before all the other passes as they assume no tokens exists
     """
 
-    def __init__(self):
+    def __init__(self, **kw):
         super().__init__(visit_tokens=True)
 
     def INT(self, args):
@@ -53,6 +53,9 @@ class StringVisitor(Visitor_Recursive):
      Removes the line overflow escapes from strings
      """
 
+    def __init__(self, **kw):
+        super().__init__()
+
     def string(self, tree):
         tree.children[0] = tree.children[0].replace('\\\n', '')
 
@@ -63,9 +66,10 @@ class CheckReferencedVariablesInterpreter(Interpreter):
     checks whether each variable reference refers to a defined variable.
     """
 
-    def __init__(self):
+    def __init__(self, **kw):
         super().__init__()
         self.vars = set()
+        self.symbol_table = kw['symbol_table']
 
     def __add_var_name_to_vars(self, var_name_node):
         assert_correct_node(var_name_node, "var_name", 1)
@@ -75,7 +79,7 @@ class CheckReferencedVariablesInterpreter(Interpreter):
     def __check_if_var_not_defined(self, var_name_node):
         assert_correct_node(var_name_node, "var_name", 1)
         var_name = var_name_node.children[0]
-        if var_name not in self.vars:
+        if var_name not in self.vars and not self.symbol_table.contains_var(var_name):
             raise Exception
 
     def __check_if_vars_in_list_not_defined(self, tree):
@@ -141,7 +145,7 @@ class CheckReferencedRelationsInterpreter(Interpreter):
     Also checks if the relation reference uses the correct arity.
     """
 
-    def __init__(self):
+    def __init__(self, **kw):
         super().__init__()
         self.relation_name_to_arity = dict()
 
@@ -212,7 +216,7 @@ class CheckReferencedIERelationsVisitor(Visitor_Recursive):
     Also checks if the ie relation reference uses the correct arity for the ie function.
     """
 
-    def __init__(self):
+    def __init__(self, **kw):
         super().__init__()
 
     def func_ie_relation(self, tree):
@@ -256,7 +260,7 @@ class CheckRuleSafetyVisitor(Visitor_Recursive):
     safe relation.
     """
 
-    def __init__(self):
+    def __init__(self, **kw):
         super().__init__()
 
     @staticmethod
@@ -352,10 +356,11 @@ class TypeCheckingInterpreter(Interpreter):
     C(X) <- A(X), B(X) # error since X is expected to be both an int and a string
     """
 
-    def __init__(self):
+    def __init__(self, **kw):
         super().__init__()
         self.var_name_to_type = dict()
         self.relation_name_to_schema = dict()
+        self.symbol_table = kw['symbol_table']
 
     def __add_var_type(self, var_name_node, var_type: VarTypes):
         assert_correct_node(var_name_node, "var_name", 1)
@@ -365,8 +370,11 @@ class TypeCheckingInterpreter(Interpreter):
     def __get_var_type(self, var_name_node):
         assert_correct_node(var_name_node, "var_name", 1)
         var_name = var_name_node.children[0]
-        assert var_name in self.var_name_to_type
-        return self.var_name_to_type[var_name]
+        assert var_name in self.var_name_to_type or self.symbol_table.contains_var(var_name)
+        if var_name in self.var_name_to_type:
+            return self.var_name_to_type[var_name]
+        else:
+            return self.symbol_table.get_variable_type(var_name)
 
     def __add_relation_schema(self, relation_name_node, relation_schema):
         assert_correct_node(relation_name_node, "relation_name", 1)
@@ -403,7 +411,7 @@ class TypeCheckingInterpreter(Interpreter):
         :param term_list_node: node of a list of terms (e.g. terms used when declaring a fact).
         :param free_var_mapping: when encountering a free variable, get its type from this mapping.
         :param relation_name_node: when encountering a free variable, get its type from the schema of this relation.
-        :return: a list of the term types
+        :return: a list of the term types nb 
         """
         assert term_list_node.data in NODES_OF_TERM_LISTS
         term_nodes = term_list_node.children

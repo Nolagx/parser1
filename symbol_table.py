@@ -22,6 +22,10 @@ class SymbolTableBase(ABC):
     def get_all_variables(self):
         pass
 
+    @abstractmethod
+    def contains_var(self, var_name):
+        pass
+
     def __repr__(self):
         print(self.get_all_variables())
 
@@ -58,3 +62,6 @@ class SymbolTable(SymbolTableBase):
             var_value = self._var_to_value[var_name]
             ret.append((var_name, var_type, var_value))
         return ret
+
+    def contains_var(self, var_name):
+        return var_name in self._var_to_value

@@ -6,6 +6,7 @@ from symbol_table import SymbolTable
 from complex_values import Span, Relation, RelationDeclaration
 from enums import VarTypes
 
+
 # TODO remove data_attr and the likes (can cause bugs)
 # TODO check if the dfs commands are okay
 
