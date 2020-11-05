@@ -1,6 +1,6 @@
 from lark import Lark, Transformer, v_args, Visitor, Tree
 from lark.visitors import Interpreter, Visitor_Recursive
-from enums import VarTypes
+from datatypes import DataTypes, get_datatype_enum
 
 NODES_OF_LIST_WITH_VAR_NAMES = {"term_list", "const_term_list"}
 NODES_OF_LIST_WITH_RELATION_NODES = {"rule_body_relation_list"}
@@ -88,30 +88,18 @@ class CheckReferencedVariablesInterpreter(Interpreter):
             if child.data == "var_name":
                 self.__check_if_var_not_defined(child)
 
-    def assign_literal_string(self, tree):
-        assert_correct_node(tree, "assign_literal_string", 2, "var_name", "string")
+    def assignment(self, tree):
+        value_type = tree.children[1].data
+        assert_correct_node(tree, "assignment", 2, "var_name", value_type)
+        if value_type == "var_name":
+            self.__check_if_var_not_defined(tree.children[1])
         self.__add_var_name_to_vars(tree.children[0])
 
-    def assign_string_from_file_string_param(self, tree):
-        assert_correct_node(tree, "assign_string_from_file_string_param", 2, "var_name", "string")
-        self.__add_var_name_to_vars(tree.children[0])
-
-    def assign_string_from_file_var_param(self, tree):
-        assert_correct_node(tree, "assign_string_from_file_var_param", 2, "var_name", "var_name")
-        self.__check_if_var_not_defined(tree.children[1])
-        self.__add_var_name_to_vars(tree.children[0])
-
-    def assign_span(self, tree):
-        assert_correct_node(tree, "assign_span", 2, "var_name", "span")
-        self.__add_var_name_to_vars(tree.children[0])
-
-    def assign_int(self, tree):
-        assert_correct_node(tree, "assign_int", 2, "var_name", "integer")
-        self.__add_var_name_to_vars(tree.children[0])
-
-    def assign_var(self, tree):
-        assert_correct_node(tree, "assign_var", 2, "var_name", "var_name")
-        self.__check_if_var_not_defined(tree.children[1])
+    def read_assignment(self, tree):
+        value_type = tree.children[1].data
+        assert_correct_node(tree, "read_assignment", 2, "var_name", value_type)
+        if value_type == "var_name":
+            self.__check_if_var_not_defined(tree.children[1])
         self.__add_var_name_to_vars(tree.children[0])
 
     def relation(self, tree):
@@ -362,7 +350,7 @@ class TypeCheckingInterpreter(Interpreter):
         self.relation_name_to_schema = dict()
         self.symbol_table = kw['symbol_table']
 
-    def __add_var_type(self, var_name_node, var_type: VarTypes):
+    def __add_var_type(self, var_name_node, var_type: DataTypes):
         assert_correct_node(var_name_node, "var_name", 1)
         var_name = var_name_node.children[0]
         self.var_name_to_type[var_name] = var_type
@@ -388,20 +376,13 @@ class TypeCheckingInterpreter(Interpreter):
         assert relation_name in self.relation_name_to_schema
         return self.relation_name_to_schema[relation_name]
 
-    def __get_const_term_type(self, const_term_node):
+    def __get_const_value_type(self, const_term_node):
         term_type = const_term_node.data
-        if term_type == "string":
-            return VarTypes.STRING
-        elif term_type == "span":
-            return VarTypes.SPAN
-        elif term_type == "integer":
-            return VarTypes.INT
-        elif term_type == "var_name":
+        if term_type == "var_name":
             assert_correct_node(const_term_node, "var_name", 1)
             return self.__get_var_type(const_term_node)
         else:
-            # do not allow for term type of "free_var_name" as it is not a constant
-            assert 0
+            return get_datatype_enum(term_type)
 
     def __get_term_types_list(self, term_list_node: Tree, free_var_mapping: dict = None,
                               relation_name_node: Tree = None):
@@ -432,32 +413,16 @@ class TypeCheckingInterpreter(Interpreter):
                 else:
                     assert 0
             else:
-                term_types.append(self.__get_const_term_type(term_node))
+                term_types.append(self.__get_const_value_type(term_node))
         return term_types
 
-    def assign_literal_string(self, tree):
-        assert_correct_node(tree, "assign_literal_string", 2, "var_name", "string")
-        self.__add_var_type(tree.children[0], VarTypes.STRING)
+    def assignment(self, tree):
+        assert_correct_node(tree, "assignment", 2, "var_name", tree.children[1].data)
+        self.__add_var_type(tree.children[0], self.__get_const_value_type(tree.children[1]))
 
-    def assign_string_from_file_string_param(self, tree):
-        assert_correct_node(tree, "assign_string_from_file_string_param", 2, "var_name", "string")
-        self.__add_var_type(tree.children[0], VarTypes.STRING)
-
-    def assign_string_from_file_var_param(self, tree):
-        assert_correct_node(tree, "assign_string_from_file_var_param", 2, "var_name", "var_name")
-        self.__add_var_type(tree.children[0], VarTypes.STRING)
-
-    def assign_span(self, tree):
-        assert_correct_node(tree, "assign_span", 2, "var_name", "span")
-        self.__add_var_type(tree.children[0], VarTypes.SPAN)
-
-    def assign_int(self, tree):
-        assert_correct_node(tree, "assign_int", 2, "var_name", "integer")
-        self.__add_var_type(tree.children[0], VarTypes.INT)
-
-    def assign_var(self, tree):
-        assert_correct_node(tree, "assign_var", 2, "var_name", "var_name")
-        self.__add_var_type(tree.children[0], self.__get_var_type(tree.children[1]))
+    def read_assignment(self, tree):
+        assert_correct_node(tree, "read_assignment", 2, "var_name", tree.children[1].data)
+        self.__add_var_type(tree.children[0], DataTypes.STRING)
 
     def relation_declaration(self, tree):
         assert_correct_node(tree, "relation_declaration", 2, "relation_name", "decl_term_list")
@@ -466,11 +431,11 @@ class TypeCheckingInterpreter(Interpreter):
         declared_schema = []
         for term_node in decl_term_list_node.children:
             if term_node.data == "decl_string":
-                declared_schema.append(VarTypes.STRING)
+                declared_schema.append(DataTypes.STRING)
             elif term_node.data == "decl_span":
-                declared_schema.append(VarTypes.SPAN)
+                declared_schema.append(DataTypes.SPAN)
             elif term_node.data == "decl_int":
-                declared_schema.append(VarTypes.INT)
+                declared_schema.append(DataTypes.INT)
             else:
                 assert 0
         self.__add_relation_schema(tree.children[0], declared_schema)
@@ -531,7 +496,7 @@ class TypeCheckingInterpreter(Interpreter):
                     # free var does not currently have a type, map it to the correct type
                     free_var_to_type[free_var] = correct_type
             else:
-                term_type = self.__get_const_term_type(term_node)
+                term_type = self.__get_const_value_type(term_node)
                 if term_type != correct_type:
                     # term is not properly typed
                     raise Exception

@@ -5,20 +5,14 @@ start: (_NEWLINE)* (statement (_NEWLINE)+)* (statement)?
           | remove_fact
           | rule
           | query
-          | assign_string
-          | assign_span
-          | assign_int
-          | assign_var
+          | assignment
 
-assign_string: var_name "=" string -> assign_literal_string
-             | var_name "=" "read" "(" string ")" -> assign_string_from_file_string_param
-             | var_name "=" "read" "(" var_name ")" -> assign_string_from_file_var_param
-
-assign_span: var_name "=" span
-
-assign_int: var_name "=" int
-
-assign_var: var_name "=" var_name
+assignment: var_name "=" string
+          | var_name "=" span
+          | var_name "=" int
+          | var_name "=" var_name
+          | var_name "=" "read" "(" string ")" -> read_assignment
+          | var_name "=" "read" "(" var_name ")" -> read_assignment
 
 relation_declaration: "new" _SEPARATOR relation_name "(" decl_term_list ")"
 

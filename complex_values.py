@@ -1,4 +1,4 @@
-from enums import VarTypes
+from datatypes import DataTypes
 
 
 class Span:
@@ -52,11 +52,11 @@ class RelationDeclaration:
     def __str__(self):
         ret = self.name + "("
         for idx, term in enumerate(self.schema):
-            if term == VarTypes.STRING:
+            if term == DataTypes.STRING:
                 ret += 'str'
-            elif term == VarTypes.SPAN:
+            elif term == DataTypes.SPAN:
                 ret += 'spn'
-            elif term == VarTypes.INT:
+            elif term == DataTypes.INT:
                 ret += "int"
             else:
                 assert 0

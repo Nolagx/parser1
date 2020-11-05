@@ -37,10 +37,10 @@ def main():
         # parser = Lark(grammar, parser='lalr', transformer=CalculateTree2())
         parser = Lark(grammar, parser='lalr', debug=True, propagate_positions=True)
 
-        test_input = open("test_input4").read()
+        test_input = open("test_input3").read()
         test_input2 = open("test_input5").read()
         parse_tree = parser.parse(test_input)
-        parse_tree2 = parser.parse(test_input2)
+        # parse_tree2 = parser.parse(test_input2)
         # test_tree = parse_tree.copy()
 
         passes = [
@@ -59,17 +59,19 @@ def main():
         # print()
         # print("=========")
         netx_passes.ResolveVariablesPass().visit(parse_tree, term_graph, symbol_table)
+        print(symbol_table)
+        # print(parse_tree.pretty())
         netx_passes.SimplifyRelationsPass().visit(parse_tree)
         netx_passes.AddNetxTreeToTermGraphPass().visit(parse_tree, term_graph, symbol_table)
 
         execution_engine = execution.NetworkxExecution(execution.PydatalogEngine(), None)
         term_graph.transform_graph(execution_engine)
 
-        parse_tree2 = run_passes(parse_tree2, passes)
-        netx_passes.ResolveVariablesPass().visit(parse_tree2, term_graph, symbol_table)
-        netx_passes.SimplifyRelationsPass().visit(parse_tree2)
-        netx_passes.AddNetxTreeToTermGraphPass().visit(parse_tree2, term_graph, symbol_table)
-        term_graph.transform_graph(execution_engine)
+        # parse_tree2 = run_passes(parse_tree2, passes)
+        # netx_passes.ResolveVariablesPass().visit(parse_tree2, term_graph, symbol_table)
+        # netx_passes.SimplifyRelationsPass().visit(parse_tree2)
+        # netx_passes.AddNetxTreeToTermGraphPass().visit(parse_tree2, term_graph, symbol_table)
+        # term_graph.transform_graph(execution_engine)
         # ============================
 
 

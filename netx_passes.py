@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from term_graph import NetxTermGraph, EvalState
 from symbol_table import SymbolTable
 from complex_values import Span, Relation, RelationDeclaration
-from enums import VarTypes
+from datatypes import DataTypes, get_datatype_string, get_datatype_enum
 
 
 # TODO remove data_attr and the likes (can cause bugs)
@@ -74,7 +74,7 @@ class ResolveVariablesPass(NetxEnginePass):
     def visit(self, netx_tree: NetxTree, term_graph: NetxTermGraph, symbol_table: SymbolTable):
         data_attr = nx.get_node_attributes(netx_tree, "data")
         nodes_to_remove = set()
-        for node in nx.dfs_preorder_nodes(netx_tree, source=netx_tree.get_root()):
+        for node in nx.dfs_postorder_nodes(netx_tree, source=netx_tree.get_root()):
             if node not in data_attr:
                 continue
             successors = list(netx_tree.successors(node))
@@ -86,30 +86,22 @@ class ResolveVariablesPass(NetxEnginePass):
                 netx_tree.nodes[value_node].clear()
                 netx_tree.nodes[value_node]['value'] = span_value
                 nodes_to_remove.add(successors[1])
-            if data_attr[node] == "assign_literal_string":
-                assert_correct_node(netx_tree, node, "assign_literal_string", 2, "var_name", "string")
-                var_name = netx_tree.get_node_value(successors[0])
-                var_value = netx_tree.get_node_value(successors[1])
-                symbol_table.set_var_type_and_value(var_name, "string", var_value)
-            if data_attr[node] == "assign_int":
-                assert_correct_node(netx_tree, node, "assign_int", 2, "var_name", "integer")
-                var_name = netx_tree.get_node_value(successors[0])
-                var_value = netx_tree.get_node_value(successors[1])
-                symbol_table.set_var_type_and_value(var_name, "integer", var_value)
-            if data_attr[node] == "assign_span":
-                assert_correct_node(netx_tree, node, "assign_span", 2, "var_name", "span")
-                assert_correct_node(netx_tree, successors[1], "span", 2, "integer", "integer")
-                var_name = netx_tree.get_node_value(successors[0])
-                span_value = self.__get_span_value_of_node(netx_tree, symbol_table, successors[1])
-                symbol_table.set_var_type_and_value(var_name, "span", span_value)
-            if data_attr[node] == "assign_var":
-                assert_correct_node(netx_tree, node, "assign_var", 2, "var_name", "var_name")
-                left_var = netx_tree.get_node_value(successors[0])
-                right_var = netx_tree.get_node_value(successors[1])
-                var_type = symbol_table.get_variable_type(right_var)
-                var_value = symbol_table.get_variable_value(right_var)
-                symbol_table.set_var_type_and_value(left_var, var_type, var_value)
-            # if data_attr[node] == "term_list" or data_attr[node] == "const_term_list":
+            if data_attr[node] == "assignment":
+                value_node_type = data_attr[successors[1]]
+                assert_correct_node(netx_tree, node, "assignment", 2, "var_name", value_node_type)
+                left_var_name = netx_tree.get_node_value(successors[0])
+                if value_node_type == "var_name":
+                    right_var_name = netx_tree.get_node_value(successors[1])
+                    assigned_value = symbol_table.get_variable_value(right_var_name)
+                    assigned_type = symbol_table.get_variable_type(right_var_name)
+                else:
+                    value_node = list(netx_tree.successors(successors[1]))[0]
+                    assigned_value = netx_tree.nodes[value_node]['value']
+                    assigned_type = get_datatype_enum(value_node_type)
+                symbol_table.set_var_type_and_value(left_var_name, assigned_type, assigned_value)
+            if data_attr[node] == "read_assignment":
+                # TODO
+                pass
             if data_attr[node] in ["term_list", "const_term_list"]:
                 for term_node in list(netx_tree.successors(node)):
                     if data_attr[term_node] == "var_name":
@@ -117,7 +109,7 @@ class ResolveVariablesPass(NetxEnginePass):
                         var_name = netx_tree.get_node_value(term_node)
                         var_type = symbol_table.get_variable_type(var_name)
                         var_value = symbol_table.get_variable_value(var_name)
-                        netx_tree.nodes[term_node]['data'] = var_type
+                        netx_tree.nodes[term_node]['data'] = get_datatype_string(var_type)
                         netx_tree.set_node_value(term_node, var_value)
             # TODO the from string from rgx_relation, depending on the syntax that is decided
         # can only remove nodes after the iteration
@@ -165,11 +157,11 @@ class SimplifyRelationsPass(NetxPass):
                 for schema_node in schema_nodes:
                     schema_node_type = netx_tree.nodes[schema_node]['data']
                     if schema_node_type == "decl_string":
-                        relation_schema.append(VarTypes.STRING)
+                        relation_schema.append(DataTypes.STRING)
                     elif schema_node_type == "decl_span":
-                        relation_schema.append(VarTypes.SPAN)
+                        relation_schema.append(DataTypes.SPAN)
                     elif schema_node_type == "decl_int":
-                        relation_schema.append(VarTypes.INT)
+                        relation_schema.append(DataTypes.INT)
                     else:
                         assert 0
                     netx_tree.nodes[successors[0]].clear()
@@ -226,38 +218,3 @@ class AddNetxTreeToTermGraphPass(NetxEnginePass):
                     new_rule_body_relation_node = term_graph.add_term(type=rule_body_relation_type,
                                                                       value=rule_body_relation_value)
                     term_graph.add_dependency(new_rule_body_node, new_rule_body_relation_node)
-
-# class AddNetxTreeToTermGraphPass(NetxEnginePass):
-#
-#     def __init__(self):
-#         super().__init__()
-#         self.term_graph_root = None
-#
-#     def __add_const_assignment(self, netx_assignment_node, netx_tree: NetxTree, term_graph: TermGraph,
-#                                symbol_table: SymbolTable):
-#         assert self.term_graph_root is not None
-#         successors = list(netx_tree.successors(netx_assignment_node))
-#         var_name = netx_tree.get_node_value(successors[0])
-#         value = netx_tree.get_node_value(successors[1])
-#         new_node = term_graph.add_term(type='assignment', debug=var_name)
-#         # symbol_table.set_variable_value(var_name, new_node)
-#         term_graph.add_dependency(self.term_graph_root, new_node)
-#         value_node = term_graph.add_term(type='const', value=value, state=EvalState.COMPUTED)
-#         term_graph.add_dependency(new_node, value_node)
-#
-#     def visit(self, netx_tree: NetxTree, term_graph: TermGraph, symbol_table: SymbolTable):
-#         data_attr = nx.get_node_attributes(netx_tree, "data")
-#         self.term_graph_root = term_graph.add_root(type='root')
-#         for node in nx.dfs_preorder_nodes(netx_tree, source=netx_tree.get_root()):
-#             if node not in data_attr:
-#                 continue
-#             successors = list(netx_tree.successors(node))
-#             if data_attr[node] == "assign_literal_string":
-#                 assert_correct_node(netx_tree, node, "assign_literal_string", 2, "var_name", "string")
-#                 self.__add_const_assignment(node, netx_tree, term_graph, symbol_table)
-#             if data_attr[node] == "assign_int":
-#                 assert_correct_node(netx_tree, node, "assign_int", 2, "var_name", "integer")
-#                 self.__add_const_assignment(node, netx_tree, term_graph, symbol_table)
-#             # if data_attr[node] == "assign_span":
-#             #     assert_correct_node(netx_tree, node, "assign_span", 2, "var_name", "span")
-#             #     self.__add_const_assignment(node, netx_tree, term_graph, symbol_table)

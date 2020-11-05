@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from datatypes import DataTypes, get_datatype_string
 
 
 class SymbolTableBase(ABC):
@@ -32,7 +33,7 @@ class SymbolTableBase(ABC):
     def __str__(self):
         ret = 'Variable\tType\tValue'
         for name, var_type, var_value in self.get_all_variables():
-            ret += f'\n{name}\t{var_type}\t{var_value}'
+            ret += f'\n{name}\t{get_datatype_string(var_type)}\t{var_value}'
         return ret
 
 
