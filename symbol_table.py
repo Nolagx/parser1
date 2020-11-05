@@ -74,7 +74,13 @@ class SymbolTableBase(ABC):
             ret += f'\n{name}\t{get_datatype_string(var_type)}\t{var_value}'
         ret += '\nRelation\tSchema'
         for relation, schema in self.get_all_relations():
-            ret += f'{relation}\t{schema}'
+            # ret += f'\n{relation}\t{schema}'
+            ret += f'\n{relation}\t('
+            for idx, term_type in enumerate(schema):
+                ret += get_datatype_string(term_type)
+                if idx < len(schema) - 1:
+                    ret += ", "
+            ret += ")"
         return ret
 
 
@@ -112,7 +118,7 @@ class SymbolTable(SymbolTableBase):
         return ret
 
     def contains_variable(self, var_name):
-        return var_name in self._var_to_value
+        return var_name in self._var_to_value or var_name in self._var_to_type
 
     def set_relation_schema(self, name, schema):
         self._relation_to_schema[name] = schema

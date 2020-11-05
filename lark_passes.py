@@ -346,35 +346,27 @@ class TypeCheckingInterpreter(Interpreter):
 
     def __init__(self, **kw):
         super().__init__()
-        self.var_name_to_type = dict()
-        self.relation_name_to_schema = dict()
         self.symbol_table = kw['symbol_table']
 
     def __add_var_type(self, var_name_node, var_type: DataTypes):
         assert_correct_node(var_name_node, "var_name", 1)
         var_name = var_name_node.children[0]
-        self.var_name_to_type[var_name] = var_type
+        self.symbol_table.set_variable_type(var_name, var_type)
 
     def __get_var_type(self, var_name_node):
         assert_correct_node(var_name_node, "var_name", 1)
         var_name = var_name_node.children[0]
-        assert var_name in self.var_name_to_type or self.symbol_table.contains_variable(var_name)
-        if var_name in self.var_name_to_type:
-            return self.var_name_to_type[var_name]
-        else:
-            return self.symbol_table.get_variable_type(var_name)
+        return self.symbol_table.get_variable_type(var_name)
 
     def __add_relation_schema(self, relation_name_node, relation_schema):
         assert_correct_node(relation_name_node, "relation_name", 1)
         relation_name = relation_name_node.children[0]
-        assert relation_name not in self.relation_name_to_schema
-        self.relation_name_to_schema[relation_name] = relation_schema
+        self.symbol_table.set_relation_schema(relation_name, relation_schema)
 
     def __get_relation_schema(self, relation_name_node):
         assert_correct_node(relation_name_node, "relation_name", 1)
         relation_name = relation_name_node.children[0]
-        assert relation_name in self.relation_name_to_schema
-        return self.relation_name_to_schema[relation_name]
+        return self.symbol_table.get_relation_schema(relation_name)
 
     def __get_const_value_type(self, const_term_node):
         term_type = const_term_node.data
@@ -506,7 +498,6 @@ class TypeCheckingInterpreter(Interpreter):
         assert_correct_node(tree.children[0], "rule_head", 2, "relation_name", "free_var_name_list")
         assert_correct_node(tree.children[1], "rule_body", 1, "rule_body_relation_list")
         rule_head_name_node = tree.children[0].children[0]
-        assert rule_head_name_node.children[0] not in self.relation_name_to_schema
         rule_head_term_list_node = tree.children[0].children[1]
         rule_body_relation_list_node = tree.children[1].children[0]
         assert_correct_node(rule_head_name_node, "relation_name", 1)
@@ -537,5 +528,4 @@ class TypeCheckingInterpreter(Interpreter):
             assert free_var_name in free_var_to_type
             var_type = free_var_to_type[free_var_name]
             rule_head_schema.append(var_type)
-        rule_head_name = rule_head_name_node.children[0]
-        self.relation_name_to_schema[rule_head_name] = rule_head_schema
+        self.__add_relation_schema(rule_head_name_node, rule_head_schema)
