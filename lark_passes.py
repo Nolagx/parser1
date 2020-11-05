@@ -126,6 +126,17 @@ class CheckReferencedVariablesInterpreter(Interpreter):
         self.__check_if_vars_in_list_not_defined(tree.children[2])
 
 
+class CheckReservedRelationNames(Interpreter):
+    def __init__(self, **kw):
+        super().__init__()
+
+    def relation_name(self, tree):
+        assert_correct_node(tree, "relation_name", 1)
+        name = tree.children[0]
+        if name.startswith("__rgxlog__"):
+            raise Exception
+
+
 class CheckReferencedRelationsInterpreter(Interpreter):
     """
     A lark tree semantic check.

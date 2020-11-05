@@ -47,6 +47,7 @@ def main():
             lark_passes.RemoveTokensTransformer,
             lark_passes.StringVisitor,
             lark_passes.CheckReferencedVariablesInterpreter,
+            lark_passes.CheckReservedRelationNames,
             lark_passes.CheckReferencedRelationsInterpreter,
             lark_passes.CheckRuleSafetyVisitor,
             lark_passes.TypeCheckingInterpreter,
