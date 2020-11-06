@@ -66,6 +66,8 @@ def main():
         # print(parse_tree.pretty())
         netx_passes.SimplifyRelationsPass().visit(parse_tree)
         netx_passes.AddNetxTreeToTermGraphPass().visit(parse_tree, term_graph, symbol_table)
+        print(term_graph)
+        exit(0)
 
         execution_engine = execution.NetworkxExecution(execution.PydatalogEngine(), None)
         term_graph.transform_graph(execution_engine)
