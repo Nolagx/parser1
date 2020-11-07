@@ -206,15 +206,18 @@ class CheckReferencedIERelationsVisitor(Visitor_Recursive):
     """
     A lark tree semantic check.
     checks whether each ie relation reference refers to a defined ie function.
-    Also checks if the ie relation reference uses the correct arity for the ie function.
     """
 
     def __init__(self, **kw):
         super().__init__()
+        self.symbol_table = kw['symbol_table']
 
     def ie_relation(self, tree):
         assert_correct_node(tree, "ie_relation", 3, "relation_name", "term_list", "term_list")
-        # TODO
+        func_name_node = tree.children[0]
+        assert_correct_node(func_name_node, "relation_name", 1)
+        if not self.symbol_table.contains_ie_function(func_name_node.children[0]):
+            raise Exception
 
 
 class CheckRuleSafetyVisitor(Visitor_Recursive):

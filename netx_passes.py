@@ -129,18 +129,21 @@ class SimplifyRelationsPass(NetxPass):
         super().__init__()
 
     @staticmethod
-    def __get_term_list(netx_tree: NetxTree, term_nodes):
-        data_attr = nx.get_node_attributes(netx_tree, "data")
-        terms = []
+    def __get_term_value_list(netx_tree: NetxTree, term_nodes):
+        values = []
         for term_node in term_nodes:
-            if data_attr[term_node] == 'string':
-                terms.append('"' + netx_tree.get_node_value(term_node) + '"')
-            else:
-                terms.append(netx_tree.get_node_value(term_node))
-        return terms
+            values.append(netx_tree.get_node_value(term_node))
+        return values
+
+    @staticmethod
+    def __get_term_type_list(netx_tree: NetxTree, term_nodes):
+        types = []
+        for term_node in term_nodes:
+            node_type = netx_tree.nodes[term_node]['data']
+            types.append(get_datatype_enum(node_type))
+        return types
 
     def visit(self, netx_tree: NetxTree):
-        # TODO ie_relations
         data_attr = nx.get_node_attributes(netx_tree, "data")
         nodes_to_remove = list()
         for node in nx.dfs_preorder_nodes(netx_tree, source=netx_tree.get_root()):
@@ -150,24 +153,30 @@ class SimplifyRelationsPass(NetxPass):
             if data_attr[node] in ["relation", "add_fact", "remove_fact", "rule_head"]:
                 relation_name = netx_tree.get_node_value(successors[0])
                 term_list_nodes = list(netx_tree.successors(successors[1]))
-                relation_value = Relation(relation_name, self.__get_term_list(netx_tree, term_list_nodes))
+                term_values = self.__get_term_value_list(netx_tree, term_list_nodes)
+                term_types = self.__get_term_type_list(netx_tree, term_list_nodes)
+                relation_value = Relation(relation_name, term_values, term_types)
                 netx_tree.nodes[successors[0]].clear()
                 netx_tree.nodes[successors[0]]['value'] = relation_value
                 nodes_to_remove.append(successors[1])
                 nodes_to_remove.extend(term_list_nodes[1:])
-            if data_attr[node] == "ie_relation":
+            elif data_attr[node] == "ie_relation":
                 assert_correct_node(netx_tree, node, "ie_relation", 3, "relation_name", "term_list", "term_list")
                 relation_name = netx_tree.get_node_value(successors[0])
                 input_term_nodes = list(netx_tree.successors(successors[1]))
                 output_term_nodes = list(netx_tree.successors(successors[2]))
-                relation_value = IERelation(relation_name, self.__get_term_list(netx_tree, input_term_nodes),
-                                            self.__get_term_list(netx_tree, output_term_nodes))
+                input_term_values = self.__get_term_value_list(netx_tree, input_term_nodes)
+                output_term_values = self.__get_term_value_list(netx_tree, output_term_nodes)
+                input_term_types = self.__get_term_type_list(netx_tree, input_term_nodes)
+                output_term_types = self.__get_term_type_list(netx_tree, output_term_nodes)
+                relation_value = IERelation(relation_name, input_term_values, output_term_values,
+                                            input_term_types, output_term_types)
                 netx_tree.nodes[successors[0]].clear()
                 netx_tree.nodes[successors[0]]['value'] = relation_value
                 nodes_to_remove.extend(successors[1:])
                 nodes_to_remove.extend(input_term_nodes)
                 nodes_to_remove.extend(output_term_nodes)
-            if data_attr[node] == "relation_declaration":
+            elif data_attr[node] == "relation_declaration":
                 assert_correct_node(netx_tree, node, "relation_declaration", 2, "relation_name", "decl_term_list")
                 relation_name = netx_tree.get_node_value(successors[0])
                 schema_nodes = list(netx_tree.successors(successors[1]))
@@ -182,8 +191,8 @@ class SimplifyRelationsPass(NetxPass):
                         relation_schema.append(DataTypes.INT)
                     else:
                         assert 0
-                    netx_tree.nodes[successors[0]].clear()
-                    netx_tree.nodes[successors[0]]['value'] = RelationDeclaration(relation_name, relation_schema)
+                netx_tree.nodes[successors[0]].clear()
+                netx_tree.nodes[successors[0]]['value'] = RelationDeclaration(relation_name, relation_schema)
                 nodes_to_remove.append(successors[1])
                 nodes_to_remove.extend(schema_nodes)
 

@@ -1,10 +1,13 @@
 from datatypes import DataTypes
 
 
-def get_term_list_string(term_list):
+def get_term_list_string(term_list, term_types):
     ret = ""
     for idx, term in enumerate(term_list):
-        ret += str(term)
+        if term_types[idx] == DataTypes.STRING:
+            ret += '"' + term + '"'
+        else:
+            ret += str(term)
         if idx < len(term_list) - 1:
             ret += ", "
     return ret
@@ -26,19 +29,23 @@ class Span:
 
 class Relation:
 
-    def __init__(self, name, terms):
+    def __init__(self, name, terms, term_types):
+        assert len(terms) == len(term_types)
         self.name = name
         self.terms = terms
+        self.term_types = term_types
 
     def __str__(self):
-        ret = self.name + "(" + get_term_list_string(self.terms) + ")"
+        ret = self.name + "(" + get_term_list_string(self.terms, self.term_types) + ")"
         return ret
 
     def get_pydatalog_string(self):
         ret = self.name + "("
         for idx, term in enumerate(self.terms):
-            if isinstance(term, Span):
+            if self.term_types[idx] == DataTypes.SPAN:
                 ret += term.get_pydatalog_string()
+            elif self.term_types[idx] == DataTypes.STRING:
+                ret += '"' + term + '"'
             else:
                 ret += str(term)
             if idx < len(self.terms) - 1:
@@ -48,14 +55,18 @@ class Relation:
 
 
 class IERelation:
-    def __init__(self, name, input_terms, output_terms):
+    def __init__(self, name, input_terms, output_terms, input_term_types, output_term_types):
+        assert len(input_terms) == len(input_term_types)
+        assert len(output_terms) == len(output_term_types)
         self.name = name
         self.input_terms = input_terms
         self.output_terms = output_terms
+        self.input_term_types = input_term_types
+        self.output_term_types = output_term_types
 
     def __str__(self):
-        ret = self.name + "(" + get_term_list_string(self.input_terms) + ")" + " -> " \
-              + "(" + get_term_list_string(self.output_terms) + ")"
+        ret = self.name + "(" + get_term_list_string(self.input_terms, self.input_term_types) + ")" + " -> " \
+              + "(" + get_term_list_string(self.output_terms, self.output_term_types) + ")"
         return ret
 
 

@@ -64,6 +64,18 @@ class SymbolTableBase(ABC):
     def get_ie_func_output_types(self, name):
         pass
 
+    @abstractmethod
+    def add_ie_function(self, name, func):
+        pass
+
+    @abstractmethod
+    def get_ie_function(self, name):
+        pass
+
+    @abstractmethod
+    def contains_ie_function(self, name):
+        pass
+
     def __repr__(self):
         # TODO
         pass
@@ -92,6 +104,7 @@ class SymbolTable(SymbolTableBase):
         self._ie_func_to_input_types = {}
         self._ie_func_to_output_types = {}
         self._ie_func_to_output_types_compute_func = {}
+        self._ie_funcs = {}
 
     def set_variable_type(self, var_name, var_type):
         self._var_to_type[var_name] = var_type
@@ -148,3 +161,12 @@ class SymbolTable(SymbolTableBase):
             input_types = self._ie_func_to_input_types[name]
             compute_func = self._ie_func_to_output_types_compute_func[name]
             return compute_func(input_types)
+
+    def add_ie_function(self, name, func):
+        self._ie_funcs[name] = func
+
+    def get_ie_function(self, name):
+        return self._ie_funcs[name]
+
+    def contains_ie_function(self, name):
+        return name in self._ie_funcs
