@@ -101,8 +101,23 @@ class ResolveVariablesPass(NetxEnginePass):
                 symbol_table.set_variable_type(left_var_name, assigned_type)
                 symbol_table.set_variable_value(left_var_name, assigned_value)
             if data_attr[node] == "read_assignment":
-                # TODO
-                pass
+                value_node_type = data_attr[successors[1]]
+                assert_correct_node(netx_tree, node, "read_assignment", 2, "var_name", value_node_type)
+                if value_node_type == "var_name":
+                    right_var_name = netx_tree.get_node_value(successors[1])
+                    read_param = symbol_table.get_variable_value(right_var_name)
+                else:
+                    read_param = netx_tree.get_node_value(successors[1])
+                try:
+                    file = open(read_param, 'r')
+                    assigned_value = file.read()
+                    file.close()
+                except Exception:
+                    raise Exception("couldn't open file")
+                left_var_name = netx_tree.get_node_value(successors[0])
+                symbol_table.set_variable_type(left_var_name, DataTypes.STRING)
+                symbol_table.set_variable_value(left_var_name, assigned_value)
+
             if data_attr[node] in ["term_list", "const_term_list"]:
                 for term_node in list(netx_tree.successors(node)):
                     if data_attr[term_node] == "var_name":

@@ -120,6 +120,57 @@ class CheckReferencedVariablesInterpreter(Interpreter):
         self.__check_if_vars_in_list_not_defined(tree.children[2])
 
 
+class CheckFilesInterpreter(Interpreter):
+    """
+        A lark tree semantic check.
+        checks for existence and access to external documents
+        """
+
+    def __init__(self, **kw):
+        super().__init__()
+        self.symbol_table = kw['symbol_table']
+        self.var_name_to_value = dict()
+
+    def assignment(self, tree):
+        value_node = tree.children[1]
+        value_type = value_node.data
+        assert_correct_node(tree, "assignment", 2, "var_name", value_type)
+        if value_type == "var_name":
+            right_var_name = value_node.children[0]
+            if self.symbol_table.contains_variable(right_var_name):
+                value = self.symbol_table.get_variable_value(right_var_name)
+            elif right_var_name in self.var_name_to_value:
+                value = self.var_name_to_value[right_var_name]
+            else:
+                assert 0
+        else:
+            value = value_node.children[0]
+        left_var_name = tree.children[0].children[0]
+        self.var_name_to_value[left_var_name] = value
+
+    def read_assignment(self, tree):
+        read_param_node = tree.children[1]
+        read_param_type = read_param_node.data
+        assert_correct_node(tree, "read_assignment", 2, "var_name", read_param_type)
+        assert_correct_node(read_param_node, read_param_type, 1)
+        read_param = read_param_node.children[0]
+        if read_param_type == "var_name":
+            if read_param in self.var_name_to_value:
+                read_param = self.var_name_to_value[read_param]
+            elif self.symbol_table.contains_variable(read_param):
+                read_param = self.symbol_table.get_variable_value(read_param)
+            else:
+                assert 0
+        assert_correct_node(tree.children[0], "var_name", 1)
+        left_var_name = tree.children[0].children[0]
+        try:
+            file = open(read_param, 'r')
+            self.var_name_to_value[left_var_name] = file.read()
+            file.close()
+        except Exception:
+            raise Exception("couldn't open file")
+
+
 class CheckReservedRelationNames(Interpreter):
     def __init__(self, **kw):
         super().__init__()
