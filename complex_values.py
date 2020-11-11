@@ -14,7 +14,7 @@ def get_term_list_string(term_list, term_types):
 
 
 class Span:
-    """a representation of a span"""
+    """A representation of a span"""
 
     def __init__(self, left_num, right_num):
         self.left_num = left_num
@@ -24,10 +24,12 @@ class Span:
         return "[" + str(self.left_num) + ", " + str(self.right_num) + ")"
 
     def get_pydatalog_string(self):
+        # due to pyDatalog limitations, a span is represented in pyDatalog as a normal tuple of length 2
         return "(" + str(self.left_num) + ", " + str(self.right_num) + ")"
 
 
 class Relation:
+    """a representation of a normal relation"""
 
     def __init__(self, name, terms, term_types):
         assert len(terms) == len(term_types)
@@ -45,6 +47,7 @@ class Relation:
             if self.term_types[idx] == DataTypes.SPAN:
                 ret += term.get_pydatalog_string()
             elif self.term_types[idx] == DataTypes.STRING:
+                # add the quotes so pyDatalog will read the value as a string, and not as a variable
                 ret += '"' + term + '"'
             else:
                 ret += str(term)
@@ -55,6 +58,8 @@ class Relation:
 
 
 class IERelation:
+    """a representation of an information extraction relation"""
+
     def __init__(self, name, input_terms, output_terms, input_term_types, output_term_types):
         assert len(input_terms) == len(input_term_types)
         assert len(output_terms) == len(output_term_types)
@@ -69,8 +74,11 @@ class IERelation:
               + "(" + get_term_list_string(self.output_terms, self.output_term_types) + ")"
         return ret
 
+    # get_pydatalog_string() is not implemented for this class as pyDatalog cannot handle IE relations
+
 
 class RelationDeclaration:
+    """a representation of a relation declaration"""
 
     def __init__(self, name, schema):
         self.name = name

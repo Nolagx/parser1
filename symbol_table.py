@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from datatypes import DataTypes, get_datatype_string
+from datatypes import get_datatype_string
 
 
 class SymbolTableBase(ABC):
