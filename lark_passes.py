@@ -1,4 +1,4 @@
-from lark import Lark, Transformer, v_args, Visitor, Tree
+from lark import Transformer, v_args, Tree
 from lark.visitors import Interpreter, Visitor_Recursive
 from datatypes import DataTypes, get_datatype_enum
 
@@ -33,16 +33,20 @@ class RemoveTokensTransformer(Transformer):
     def __init__(self, **kw):
         super().__init__(visit_tokens=True)
 
-    def INT(self, args):
+    @staticmethod
+    def INT(args):
         return int(args[0:])
 
-    def LOWER_CASE_NAME(self, args):
+    @staticmethod
+    def LOWER_CASE_NAME(args):
         return args[0:]
 
-    def UPPER_CASE_NAME(self, args):
+    @staticmethod
+    def UPPER_CASE_NAME(args):
         return args[0:]
 
-    def STRING(self, args):
+    @staticmethod
+    def STRING(args):
         # removes the quotation marks
         return args[1:-1]
 
@@ -56,7 +60,8 @@ class StringVisitor(Visitor_Recursive):
     def __init__(self, **kw):
         super().__init__()
 
-    def string(self, tree):
+    @staticmethod
+    def string(tree):
         tree.children[0] = tree.children[0].replace('\\\n', '')
 
 
@@ -122,9 +127,9 @@ class CheckReferencedVariablesInterpreter(Interpreter):
 
 class CheckFilesInterpreter(Interpreter):
     """
-        A lark tree semantic check.
-        checks for existence and access to external documents
-        """
+    A lark tree semantic check.
+    checks for existence and access to external documents
+    """
 
     def __init__(self, **kw):
         super().__init__()
@@ -172,14 +177,21 @@ class CheckFilesInterpreter(Interpreter):
 
 
 class CheckReservedRelationNames(Interpreter):
+    """
+    A lark tree semantic check.
+    Checks if there are relations in the program with a name that starts with "__rgxlog__"
+    if such relations exist, throw an exception as this is a reserved name for rgxlog.
+    """
+
     def __init__(self, **kw):
         super().__init__()
 
-    def relation_name(self, tree):
+    @staticmethod
+    def relation_name(tree):
         assert_correct_node(tree, "relation_name", 1)
         name = tree.children[0]
         if name.startswith("__rgxlog__"):
-            raise Exception
+            raise Exception("names starting with __rgxlog__ cannot be used")
 
 
 class CheckReferencedRelationsInterpreter(Interpreter):
@@ -449,6 +461,7 @@ class ReorderRuleBodyVisitor(Visitor_Recursive):
 
 class TypeCheckingInterpreter(Interpreter):
     """
+    TODO CURRENTLY NOT COMPLETE. TBD how to deal with ie relations
     A lark tree semantic check.
     Assumes that relations and ie relations references and correct arity were checked.
     Also assumes variable references were checked.
