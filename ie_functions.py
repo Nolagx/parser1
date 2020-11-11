@@ -47,7 +47,7 @@ class RGX(IEFunctionData):
             else:
                 for i in range(1, num_groups + 1):
                     cur_tuple.append(match.span(i))
-            ret.append(tuple(cur_tuple))
+            ret.append(cur_tuple)
         return ret
 
     @staticmethod
@@ -80,7 +80,7 @@ class RGXString(IEFunctionData):
             else:
                 for i in range(1, num_groups + 1):
                     cur_tuple.append(match.group(i))
-            ret.append(tuple(cur_tuple))
+            ret.append(cur_tuple)
         return ret
 
     @staticmethod

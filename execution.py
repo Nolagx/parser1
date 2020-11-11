@@ -1,11 +1,12 @@
 from abc import ABC, abstractmethod
 import networkx as nx
 from term_graph import EvalState
-from complex_values import Relation, RelationDeclaration, IERelation
+from complex_values import Relation, RelationDeclaration, IERelation, Span
 from pyDatalog import pyDatalog
 from datatypes import DataTypes
 from symbol_table import SymbolTable
 import ie_functions
+from ie_functions import IEFunctionData
 
 
 class DatalogEngineBase(ABC):
@@ -124,13 +125,13 @@ class PydatalogEngine(DatalogEngineBase):
         print(temp_relation.get_pydatalog_string() + " <= " + relation.get_pydatalog_string())
         return temp_relation
 
-    def compute_rule_body_ie_relation(self, ie_relation: IERelation, ie_func_data, bounding_relation: Relation):
+    def compute_rule_body_ie_relation(self, ie_relation: IERelation, ie_func_data: IEFunctionData,
+                                      bounding_relation: Relation):
         input_relation = Relation(self.__get_new_temp_relation_name(), ie_relation.input_terms,
                                   ie_relation.input_term_types)
         output_relation = Relation(self.__get_new_temp_relation_name(), ie_relation.output_terms,
                                    ie_relation.output_term_types)
-        input_types = ie_func_data.get_input_types()
-        # extract the input into a temp input relation.
+        # extract the input into an input relation.
         self.add_rule(input_relation, [bounding_relation])
         # get a list of input tuples. to get them we query pyDatalog using the input relation name, and all
         # of the terms will be free variables (so we get the whole tuple)
@@ -143,13 +144,41 @@ class PydatalogEngine(DatalogEngineBase):
         ie_inputs = pyDatalog.ask(query_str).answers
         # get all the outputs
         ie_outputs = []
-        ie_func = ie_func_data.ie_function
-        for ie_input in ie_inputs:
-            ie_outputs.extend(ie_func(*ie_input))
+        ie_output_types = []
+        for idx, ie_input in enumerate(ie_inputs):
+            # TODO type checking depending on dean's answer
+            if idx == 0:
+                ie_output_types = ie_func_data.get_output_types(*ie_input)
+            elif ie_output_types != ie_func_data.get_output_types(*ie_input):
+                raise Exception("received incorrect output types")
+            output = ie_func_data.ie_function(*ie_input)
+            ie_outputs.extend(output)
+        ie_output_types = tuple(ie_output_types)
+        # check output types
+        for ie_output in ie_outputs:
+            actual_output_types = []
+            for value in ie_output:
+                if isinstance(value, int):
+                    actual_output_types.append(DataTypes.INT)
+                elif isinstance(value, str):
+                    actual_output_types.append(DataTypes.STRING)
+                elif isinstance(value, tuple) and len(value) == 2:
+                    actual_output_types.append(DataTypes.SPAN)
+                else:
+                    raise Exception("invalid output type")
+            if tuple(actual_output_types) != ie_output_types:
+                raise Exception("invalid output types")
+        # convert spans to a Span type
+        for i in range(len(ie_outputs)):
+            ie_outputs[i] = list(ie_outputs[i])
+            for j in range(len(ie_output_types)):
+                if ie_output_types[j] == DataTypes.SPAN:
+                    span_tuple = ie_outputs[i][j]
+                    assert len(span_tuple) == 2
+                    ie_outputs[i][j] = Span(span_tuple[0], span_tuple[1])
         # add the outputs to the output relation
         for ie_output in ie_outputs:
-            # TODO get output term types
-            output_fact = Relation(output_relation.name, ie_output, [DataTypes.STRING, DataTypes.STRING])
+            output_fact = Relation(output_relation.name, ie_output, ie_output_types)
             self.add_fact(output_fact)
         # create the result relation. it's a temp relation that takes the bounding relation, input relation and
         # output relation into account. therefore it must have the free variables of all of the previously mentioned
