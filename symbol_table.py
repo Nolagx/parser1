@@ -45,35 +45,11 @@ class SymbolTableBase(ABC):
         pass
 
     @abstractmethod
-    def set_ie_func_input_types(self, name, types):
+    def contains_relation(self, relation_name):
         pass
 
     @abstractmethod
-    def get_ie_func_input_types(self, name):
-        pass
-
-    @abstractmethod
-    def set_ie_func_output_types(self, name, types):
-        pass
-
-    @abstractmethod
-    def set_ie_func_output_types_compute_func(self, name, func):
-        pass
-
-    @abstractmethod
-    def get_ie_func_output_types(self, name):
-        pass
-
-    @abstractmethod
-    def add_ie_function(self, name, func):
-        pass
-
-    @abstractmethod
-    def get_ie_function(self, name):
-        pass
-
-    @abstractmethod
-    def contains_ie_function(self, name):
+    def remove_relation(self, relation_name):
         pass
 
     def __repr__(self):
@@ -86,7 +62,6 @@ class SymbolTableBase(ABC):
             ret += f'\n{name}\t{get_datatype_string(var_type)}\t{var_value}'
         ret += '\nRelation\tSchema'
         for relation, schema in self.get_all_relations():
-            # ret += f'\n{relation}\t{schema}'
             ret += f'\n{relation}\t('
             for idx, term_type in enumerate(schema):
                 ret += get_datatype_string(term_type)
@@ -101,10 +76,6 @@ class SymbolTable(SymbolTableBase):
         self._var_to_value = {}
         self._var_to_type = {}
         self._relation_to_schema = {}
-        self._ie_func_to_input_types = {}
-        self._ie_func_to_output_types = {}
-        self._ie_func_to_output_types_compute_func = {}
-        self._ie_funcs = {}
 
     def set_variable_type(self, var_name, var_type):
         self._var_to_type[var_name] = var_type
@@ -142,31 +113,8 @@ class SymbolTable(SymbolTableBase):
     def get_all_relations(self):
         return ((relation, schema) for relation, schema in self._relation_to_schema.items())
 
-    def set_ie_func_input_types(self, name, types):
-        self._ie_func_to_input_types[name] = types
+    def contains_relation(self, relation_name):
+        return relation_name in self._relation_to_schema
 
-    def get_ie_func_input_types(self, name):
-        return self._ie_func_to_input_types[name]
-
-    def set_ie_func_output_types(self, name, types):
-        self._ie_func_to_output_types[name] = types
-
-    def set_ie_func_output_types_compute_func(self, name, func):
-        self._ie_func_to_output_types_compute_func[name] = func
-
-    def get_ie_func_output_types(self, name):
-        if name in self._ie_func_to_output_types:
-            return self._ie_func_to_output_types[name]
-        else:
-            input_types = self._ie_func_to_input_types[name]
-            compute_func = self._ie_func_to_output_types_compute_func[name]
-            return compute_func(input_types)
-
-    def add_ie_function(self, name, func):
-        self._ie_funcs[name] = func
-
-    def get_ie_function(self, name):
-        return self._ie_funcs[name]
-
-    def contains_ie_function(self, name):
-        return name in self._ie_funcs
+    def remove_relation(self, relation_name):
+        del self._relation_to_schema[relation_name]
