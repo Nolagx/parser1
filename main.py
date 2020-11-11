@@ -10,6 +10,7 @@ from term_graph import NetxTermGraph
 from networkx_viewer import Viewer
 import execution
 import ie_functions
+import importlib
 
 symbol_table = SymbolTable()
 term_graph = NetxTermGraph()
@@ -33,8 +34,6 @@ def run_passes(tree, pass_list):
 
 
 def main():
-    symbol_table.add_ie_function('rgx', ie_functions.rgx)
-    symbol_table.add_ie_function('rgx_string', ie_functions.rgx_string)
     with open('grammar.lark', 'r') as grammar:
         # parser = Lark(grammar, parser='lalr', transformer=CalculateTree())
         # parser = Lark(grammar, parser='lalr', transformer=CalculateTree2())
@@ -52,7 +51,7 @@ def main():
             lark_passes.CheckReferencedVariablesInterpreter,
             lark_passes.CheckReservedRelationNames,
             lark_passes.CheckReferencedRelationsInterpreter,
-            lark_passes.CheckReferencedIERelationsVisitor,
+            # lark_passes.CheckReferencedIERelationsVisitor,
             lark_passes.CheckRuleSafetyVisitor,
             # lark_passes.TypeCheckingInterpreter,
             lark_passes.ReorderRuleBodyVisitor,
@@ -73,6 +72,11 @@ def main():
 
         execution_engine = execution.NetworkxExecution(execution.PydatalogEngine(), symbol_table)
         term_graph.transform_graph(execution_engine)
+
+        # rgx_string_func = getattr(ie_functions, "RGXString")
+
+
+
         # parse_tree2 = run_passes(parse_tree2, passes)
         # netx_passes.ResolveVariablesPass().visit(parse_tree2, term_graph, symbol_table)
         # netx_passes.SimplifyRelationsPass().visit(parse_tree2)

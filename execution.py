@@ -5,6 +5,7 @@ from complex_values import Relation, RelationDeclaration, IERelation
 from pyDatalog import pyDatalog
 from datatypes import DataTypes
 from symbol_table import SymbolTable
+import ie_functions
 
 
 class DatalogEngineBase(ABC):
@@ -36,13 +37,13 @@ class DatalogEngineBase(ABC):
         pass
 
     @abstractmethod
-    def compute_rule_body_ie_relation(self, ie_relation, ie_func, bounding_relation):
+    def compute_rule_body_ie_relation(self, ie_relation, ie_func_data, bounding_relation):
         """
         since ie relations may have input free variables, we need to use another relation to determine the inputs
         for ie_relation. Each free variable that appears as an ie_relation input term must appear at least once in the
         bounding_relation terms.
         :param ie_relation: a relation that determines the input and output terms of the ie function
-        :param ie_func: the ie function
+        :param ie_func_data: the data for the ie function
         :param bounding_relation: a relation that contains the inputs for ie_funcs. the actual input needs to be
         extracted from it
         :return: resulting relation
@@ -123,11 +124,12 @@ class PydatalogEngine(DatalogEngineBase):
         print(temp_relation.get_pydatalog_string() + " <= " + relation.get_pydatalog_string())
         return temp_relation
 
-    def compute_rule_body_ie_relation(self, ie_relation: IERelation, ie_func, bounding_relation: Relation):
+    def compute_rule_body_ie_relation(self, ie_relation: IERelation, ie_func_data, bounding_relation: Relation):
         input_relation = Relation(self.__get_new_temp_relation_name(), ie_relation.input_terms,
                                   ie_relation.input_term_types)
         output_relation = Relation(self.__get_new_temp_relation_name(), ie_relation.output_terms,
                                    ie_relation.output_term_types)
+        input_types = ie_func_data.get_input_types()
         # extract the input into a temp input relation.
         self.add_rule(input_relation, [bounding_relation])
         # get a list of input tuples. to get them we query pyDatalog using the input relation name, and all
@@ -141,6 +143,7 @@ class PydatalogEngine(DatalogEngineBase):
         ie_inputs = pyDatalog.ask(query_str).answers
         # get all the outputs
         ie_outputs = []
+        ie_func = ie_func_data.ie_function
         for ie_input in ie_inputs:
             ie_outputs.extend(ie_func(*ie_input))
         # add the outputs to the output relation
@@ -211,9 +214,9 @@ class NetworkxExecution(ExecutionBase):
                         temp_result = term_graph.nodes[relation_node]['value']
                     elif term_graph.nodes[relation_node]['type'] == 'ie_relation':
                         assert temp_result is not None
-                        ie_func = self.symbol_table.get_ie_function(relation_value.name)
+                        ie_func_data = getattr(ie_functions, relation_value.name)
                         term_graph.nodes[relation_node]['value'] = self.datalog_engine.compute_rule_body_ie_relation(
-                            relation_value, ie_func, temp_result)
+                            relation_value, ie_func_data, temp_result)
                         temp_result = term_graph.nodes[relation_node]['value']
                     else:
                         assert 0
