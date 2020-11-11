@@ -52,10 +52,6 @@ class SymbolTableBase(ABC):
     def remove_relation(self, relation_name):
         pass
 
-    def __repr__(self):
-        # TODO
-        pass
-
     def __str__(self):
         ret = 'Variable\tType\tValue'
         for name, var_type, var_value in self.get_all_variables():
