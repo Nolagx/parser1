@@ -4,6 +4,10 @@ from datatypes import DataTypes
 
 
 class IEFunctionData(ABC):
+    """
+    A class that contains all the functions that provide data
+    needed for using a single information extraction function
+    """
 
     def __init__(self):
         super().__init__()
