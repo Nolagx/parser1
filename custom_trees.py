@@ -3,7 +3,8 @@ import networkx as nx
 
 class NetxTree(nx.OrderedDiGraph):
     """
-    A class that defines a Networkx tree
+    A class that defines a Networkx tree.
+    Saves the tree root so networkx passes know where to start their tree travel from.
     """
 
     def __init__(self):
@@ -69,17 +70,13 @@ class NetxTree(nx.OrderedDiGraph):
         return ret
 
     def get_node_value(self, node):
-        """
-        used to get a value of a node that has a single child who has a value attribute
-        """
+        """used to get a value of a node that has a single child who has a value attribute"""
         successors = list(self.successors(node))
         assert len(successors) == 1
         return self.nodes[successors[0]]['value']
 
     def set_node_value(self, node, value):
-        """
-        used to set a value of a node that has a single child who has a value attribute
-        """
+        """used to set a value of a node that has a single child who has a value attribute"""
         successors = list(self.successors(node))
         assert len(successors) == 1
         value_node = successors[0]
