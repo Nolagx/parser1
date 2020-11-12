@@ -655,6 +655,8 @@ class TypeCheckingInterpreter(Interpreter):
                 ie_func_data = getattr(ie_functions, ie_func_name)
                 input_schema = ie_func_data.get_input_types()
                 output_schema = ie_func_data.get_output_types(len(output_term_list_node.children))
+                if output_schema is None:
+                    raise Exception("invalid output arity")
                 self.__type_check_rule_body_term_list(input_term_list_node, input_schema, free_var_to_type)
                 self.__type_check_rule_body_term_list(output_term_list_node, output_schema, free_var_to_type)
             else:

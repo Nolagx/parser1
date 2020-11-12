@@ -10,6 +10,10 @@ from ie_functions import IEFunctionData
 
 
 class DatalogEngineBase(ABC):
+    """
+    An abstraction for a datalog execution engine
+    """
+
     def __init__(self):
         super().__init__()
 
@@ -52,16 +56,35 @@ class DatalogEngineBase(ABC):
         pass
 
     @abstractmethod
+    def aggregate_relations_to_temp_relation(self, relations):
+        """
+        perform an inner join between all of the relations in "relations" and saves the result to a relation
+        that its schema is defined by all the free variables that appear in the relations in "relations".
+
+        for example, if relations is [A(X,Y,3), B(X,Z,W)], this function should return a relation that is defined
+        like this:
+        some_temp(X,Y,Z,W) <- A(X,Y,3), B(X,Z,W)
+        """
+        pass
+
+    @abstractmethod
     def remove_temp_result(self, relation):
         pass
 
 
 class PydatalogEngine(DatalogEngineBase):
+    """
+    implementation of a datalog engine using pyDatalog
+    """
 
-    def __init__(self):
+    def __init__(self, debug=False):
+        """
+        :param debug: print the commands that are loaded into pyDatalog
+        """
         super().__init__()
         self.temp_relations = dict()
         self.new_temp_relation_idx = 0
+        self.debug = debug
 
     def __get_new_temp_relation_name(self):
         temp_relation_name = "__rgxlog__" + str(self.new_temp_relation_idx)
@@ -95,19 +118,26 @@ class PydatalogEngine(DatalogEngineBase):
             if i != schema_length - 1:
                 temp_fact += ", "
         temp_fact += ")"
+        if self.debug:
+            print("(the following 'add fact' and 'remove fact' are loaded in order to declare a relation)")
+            print("+" + temp_fact)
+            print("-" + temp_fact)
         pyDatalog.load("+" + temp_fact)
         pyDatalog.load("-" + temp_fact)
 
     def add_fact(self, fact: Relation):
-        print("+" + fact.get_pydatalog_string())
+        if self.debug:
+            print("+" + fact.get_pydatalog_string())
         pyDatalog.load("+" + fact.get_pydatalog_string())
 
     def remove_fact(self, fact: Relation):
-        print("-" + fact.get_pydatalog_string())
+        if self.debug:
+            print("-" + fact.get_pydatalog_string())
         pyDatalog.load("-" + fact.get_pydatalog_string())
 
     def query(self, query: Relation):
-        print("print(" + query.get_pydatalog_string() + ")")
+        if self.debug:
+            print("print(" + query.get_pydatalog_string() + ")")
         pyDatalog.load("print(" + query.get_pydatalog_string() + ")")
 
     def add_rule(self, rule_head: Relation, rule_body):
@@ -116,13 +146,15 @@ class PydatalogEngine(DatalogEngineBase):
             rule_string += rule_body_relation.get_pydatalog_string()
             if idx < len(rule_body) - 1:
                 rule_string += " & "
-        print(rule_string)
+        if self.debug:
+            print(rule_string)
         pyDatalog.load(rule_string)
 
     def compute_rule_body_relation(self, relation: Relation):
         temp_relation = self.__extract_temp_relation([relation])
+        if self.debug:
+            print(temp_relation.get_pydatalog_string() + " <= " + relation.get_pydatalog_string())
         pyDatalog.load(temp_relation.get_pydatalog_string() + " <= " + relation.get_pydatalog_string())
-        print(temp_relation.get_pydatalog_string() + " <= " + relation.get_pydatalog_string())
         return temp_relation
 
     def compute_rule_body_ie_relation(self, ie_relation: IERelation, ie_func_data: IEFunctionData,
@@ -174,13 +206,13 @@ class PydatalogEngine(DatalogEngineBase):
         for ie_output in ie_outputs:
             output_fact = Relation(output_relation.name, ie_output, ie_output_types)
             self.add_fact(output_fact)
-        # create the result relation. it's a temp relation that takes the bounding relation, input relation and
-        # output relation into account. therefore it must have the free variables of all of the previously mentioned
-        # relations.
-        temp_rule_body_relations = [bounding_relation, input_relation, output_relation]
-        result_relation = self.__extract_temp_relation(temp_rule_body_relations)
-        self.add_rule(result_relation, temp_rule_body_relations)
-        return result_relation
+        # return the result relation. it's a temp relation that is the inner join of the input and output relations
+        return self.aggregate_relations_to_temp_relation([input_relation, output_relation])
+
+    def aggregate_relations_to_temp_relation(self, relations):
+        result = self.__extract_temp_relation(relations)
+        self.add_rule(result, relations)
+        return result
 
     def remove_temp_result(self, relation: Relation):
         """
@@ -192,6 +224,10 @@ class PydatalogEngine(DatalogEngineBase):
 
 
 class ExecutionBase(ABC):
+    """
+    Abstraction for a class that gets a term graph and execute it
+    """
+
     def __init__(self):
         super().__init__()
 
@@ -201,6 +237,9 @@ class ExecutionBase(ABC):
 
 
 class NetworkxExecution(ExecutionBase):
+    """
+    Executes a networkx based term graph
+    """
 
     def __init__(self, datalog_engine: DatalogEngineBase, symbol_table: SymbolTable):
         super().__init__()
@@ -222,6 +261,47 @@ class NetworkxExecution(ExecutionBase):
             elif node_type == "query":
                 self.datalog_engine.query(term_graph.nodes[node]['value'])
             if node_type == "rule":
+                """
+                This rule execution assumes that a previous pass reordered the rule body relations in a way that
+                each relation's input free variables (should they exist) are bounded by relations to the relation's
+                left. lark_passes.ReorderRuleBodyVisitor is an example for such a pass.
+                
+                this implementation computes each rule body relation from left to right, each time aggregating
+                all of the free variables (and their values) seen so far.
+                Once all of the rule body relations are computed, the aggregated relation is filtered into the
+                rule head relation.
+                See example at https://github.com/DeanLight/spanner_workbench/issues/23#issuecomment-721704745
+                
+                TODO:
+                1. in a different pass, reorder the terms in a way that relations that contain free variables
+                that are not used in other relations are on the right side of the rule (so they are computed
+                at the very end of the rule)
+                
+                For example for the rule
+                A(X,Y) <- B(K), C(X), D(X)->(Y)
+                we notice that B's free variable K is not used by the other relations, so we could optimize the
+                rule computations by reordering the rule like this:
+                A(X,Y) <- C(X), D(X)->(Y), B(K)
+                
+                2. An improvement of optimization 1: 
+                a. create a dependency graph of rule body relations 
+                (where an edge from relation e1 to relation e2 means that e2 depends on the results of e1)
+                b. using the dependency graph, compute relations in a way that you only aggregate results to a 
+                temporary relation when you have to.
+                
+                for example for the rule A(Z) <- C(X),D(X,Y),B(Z),G(Z)->(Z),F(Y,Z)->(Y,Z):
+                a. the bounding graph is:
+                    C -> D
+                    B -> G
+                    G -> F
+                    D -> F
+                b. we could for example compute this rule in the following way:
+                * compute C, use it to compute D, aggregate the results to temp1
+                * compute B, use it to compute G, aggregate the results to temp2
+                * aggregate temp1 and temp2 to temp3
+                * use temp3 to compute F, aggregate the result and temp3 to temp4
+                * filter temp4 into the rule head relation A(Z)
+                """
                 rule_head_node = successors[0]
                 rule_body_node = successors[1]
                 assert term_graph.nodes[rule_head_node]['type'] == 'rule_head'
@@ -234,17 +314,21 @@ class NetworkxExecution(ExecutionBase):
                         term_graph.nodes[relation_node]['value'] = self.datalog_engine.compute_rule_body_relation(
                             relation_value)
                         term_graph.nodes[relation_node]['state'] = EvalState.COMPUTED
-                        temp_result = term_graph.nodes[relation_node]['value']
+                        if temp_result is None:
+                            temp_result = term_graph.nodes[relation_node]['value']
+                        else:
+                            temp_result = self.datalog_engine.aggregate_relations_to_temp_relation(
+                                [temp_result, term_graph.nodes[relation_node]['value']])
                     elif term_graph.nodes[relation_node]['type'] == 'ie_relation':
                         assert temp_result is not None
                         ie_func_data = getattr(ie_functions, relation_value.name)
                         term_graph.nodes[relation_node]['value'] = self.datalog_engine.compute_rule_body_ie_relation(
                             relation_value, ie_func_data, temp_result)
-                        temp_result = term_graph.nodes[relation_node]['value']
+                        temp_result = self.datalog_engine.aggregate_relations_to_temp_relation(
+                            [temp_result, term_graph.nodes[relation_node]['value']])
+                        term_graph.nodes[relation_node]['state'] = EvalState.COMPUTED
                     else:
                         assert 0
                 rule_head_value = term_graph.nodes[rule_head_node]['value']
                 self.datalog_engine.add_rule(rule_head_value, [temp_result])
-
-            # TODO more accurate computed determination
             term_graph.nodes[node]['state'] = EvalState.COMPUTED

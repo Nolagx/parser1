@@ -65,14 +65,14 @@ def main():
         # print()
         # print("=========")
         netx_passes.ResolveVariablesPass().visit(parse_tree, term_graph, symbol_table)
-        print(symbol_table)
+        # print(symbol_table)
         # print(parse_tree.pretty())
         netx_passes.SimplifyRelationsPass().visit(parse_tree)
         netx_passes.AddNetxTreeToTermGraphPass().visit(parse_tree, term_graph, symbol_table)
-        print(term_graph)
 
-        execution_engine = execution.NetworkxExecution(execution.PydatalogEngine(), symbol_table)
+        execution_engine = execution.NetworkxExecution(execution.PydatalogEngine(debug=False), symbol_table)
         term_graph.transform_graph(execution_engine)
+        # print(term_graph)
 
         # rgx_string_func = getattr(ie_functions, "RGXString")
 
