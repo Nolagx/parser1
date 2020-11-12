@@ -2,6 +2,7 @@ from graph_converters import Converter
 import graph_converters
 import lark_passes
 import netx_passes
+from netx_passes import NetxPass
 from lark import Lark, Transformer, Visitor
 from lark.visitors import Interpreter, Visitor_Recursive
 import networkx as nx
@@ -9,6 +10,7 @@ from symbol_table import SymbolTable
 from term_graph import NetxTermGraph
 from networkx_viewer import Viewer
 import execution
+from execution import ExecutionBase
 import ie_functions
 import importlib
 
@@ -16,7 +18,7 @@ symbol_table = SymbolTable()
 term_graph = NetxTermGraph()
 
 
-def run_passes(tree, pass_list):
+def run_passes(tree, pass_list, datalog_engine):
     """
     Runs the passes in pass_list on tree, one after another.
     """
@@ -28,6 +30,10 @@ def run_passes(tree, pass_list):
             tree = cur_pass(symbol_table=symbol_table, term_graph=term_graph).transform(tree)
         elif issubclass(cur_pass, Converter):
             tree = cur_pass().convert(tree)
+        elif issubclass(cur_pass, NetxPass):
+            cur_pass(symbol_table=symbol_table, term_graph=term_graph).visit(tree)
+        elif issubclass(cur_pass, ExecutionBase):
+            term_graph.transform_graph(cur_pass(datalog_engine, symbol_table))
         else:
             assert 0
     return tree
@@ -57,21 +63,25 @@ def main():
             lark_passes.TypeCheckingInterpreter,
             lark_passes.ReorderRuleBodyVisitor,
             graph_converters.LarkTreeToNetxTreeConverter,
+            netx_passes.ResolveVariablesPass,
+            netx_passes.SimplifyRelationsPass,
+            netx_passes.AddNetxTreeToTermGraphPass,
+            execution.NetworkxExecution
         ]
-        parse_tree = run_passes(parse_tree, passes)
+        parse_tree = run_passes(parse_tree, passes, execution.PydatalogEngine(debug=False))
         # print(parse_tree.pretty_with_nodes())
         # for node in nx.dfs_preorder_nodes(parse_tree):
         #     print(node, end=" ")
         # print()
         # print("=========")
-        netx_passes.ResolveVariablesPass().visit(parse_tree, term_graph, symbol_table)
+        # netx_passes.ResolveVariablesPass(symbol_table=symbol_table).visit(parse_tree)
         print(symbol_table)
         # print(parse_tree.pretty())
-        netx_passes.SimplifyRelationsPass().visit(parse_tree)
-        netx_passes.AddNetxTreeToTermGraphPass().visit(parse_tree, term_graph, symbol_table)
+        # netx_passes.SimplifyRelationsPass().visit(parse_tree)
+        # netx_passes.AddNetxTreeToTermGraphPass(term_graph=term_graph).visit(parse_tree)
 
-        execution_engine = execution.NetworkxExecution(execution.PydatalogEngine(debug=False), symbol_table)
-        term_graph.transform_graph(execution_engine)
+        # execution_engine = execution.NetworkxExecution(execution.PydatalogEngine(debug=False), symbol_table)
+        # term_graph.transform_graph(execution_engine)
         # print(term_graph)
 
         # rgx_string_func = getattr(ie_functions, "RGXString")
