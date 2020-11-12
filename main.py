@@ -65,7 +65,7 @@ def main():
         # print()
         # print("=========")
         netx_passes.ResolveVariablesPass().visit(parse_tree, term_graph, symbol_table)
-        # print(symbol_table)
+        print(symbol_table)
         # print(parse_tree.pretty())
         netx_passes.SimplifyRelationsPass().visit(parse_tree)
         netx_passes.AddNetxTreeToTermGraphPass().visit(parse_tree, term_graph, symbol_table)

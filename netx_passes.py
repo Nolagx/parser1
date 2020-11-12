@@ -7,9 +7,6 @@ from complex_values import Span, Relation, RelationDeclaration, IERelation
 from datatypes import DataTypes, get_datatype_string, get_datatype_enum
 
 
-# TODO remove data_attr and the likes (can cause bugs)
-# TODO check if the dfs commands are okay
-
 def assert_correct_node(netx_tree: NetxTree, node, node_name, len_children=None, *children_names):
     nodes = netx_tree.nodes
     children = list(netx_tree.successors(node))
@@ -60,17 +57,6 @@ class ResolveVariablesPass(NetxEnginePass):
     def __init__(self):
         super().__init__()
 
-    @staticmethod
-    def __get_span_value_of_node(netx_tree, symbol_table, span_node):
-        # currently only supports spans with literal values
-        assert_correct_node(netx_tree, span_node, "span", 2, "integer", "integer")
-        successors = list(netx_tree.successors(span_node))
-        assert_correct_node(netx_tree, successors[0], "integer")
-        assert_correct_node(netx_tree, successors[1], "integer")
-        left_num = netx_tree.get_node_value(successors[0])
-        right_num = netx_tree.get_node_value(successors[1])
-        return Span(left_num, right_num)
-
     def visit(self, netx_tree: NetxTree, term_graph: NetxTermGraph, symbol_table: SymbolTable):
         data_attr = nx.get_node_attributes(netx_tree, "data")
         nodes_to_remove = set()
@@ -79,9 +65,14 @@ class ResolveVariablesPass(NetxEnginePass):
                 continue
             successors = list(netx_tree.successors(node))
             if data_attr[node] == "span":
-                # convert span to a complex value, this is done here as span might contain variables in future updates
+                # convert span to a complex value
+                # this is done here and not in a different pass as span might contain variables in future updates
                 assert_correct_node(netx_tree, node, "span", 2, "integer", "integer")
-                span_value = self.__get_span_value_of_node(netx_tree, symbol_table, node)
+                assert_correct_node(netx_tree, successors[0], "integer")
+                assert_correct_node(netx_tree, successors[1], "integer")
+                left_num = netx_tree.get_node_value(successors[0])
+                right_num = netx_tree.get_node_value(successors[1])
+                span_value = Span(left_num, right_num)
                 value_node = successors[0]
                 netx_tree.nodes[value_node].clear()
                 netx_tree.nodes[value_node]['value'] = span_value
@@ -117,7 +108,6 @@ class ResolveVariablesPass(NetxEnginePass):
                 left_var_name = netx_tree.get_node_value(successors[0])
                 symbol_table.set_variable_type(left_var_name, DataTypes.STRING)
                 symbol_table.set_variable_value(left_var_name, assigned_value)
-
             if data_attr[node] in ["term_list", "const_term_list"]:
                 for term_node in list(netx_tree.successors(node)):
                     if data_attr[term_node] == "var_name":
@@ -127,7 +117,6 @@ class ResolveVariablesPass(NetxEnginePass):
                         var_value = symbol_table.get_variable_value(var_name)
                         netx_tree.nodes[term_node]['data'] = get_datatype_string(var_type)
                         netx_tree.set_node_value(term_node, var_value)
-            # TODO the from string from rgx_relation, depending on the syntax that is decided
         # can only remove nodes after the iteration
         for node in nodes_to_remove:
             netx_tree.remove_node(node)
@@ -161,7 +150,7 @@ class SimplifyRelationsPass(NetxPass):
     def visit(self, netx_tree: NetxTree):
         data_attr = nx.get_node_attributes(netx_tree, "data")
         nodes_to_remove = list()
-        for node in nx.dfs_preorder_nodes(netx_tree, source=netx_tree.get_root()):
+        for node in nx.dfs_postorder_nodes(netx_tree, source=netx_tree.get_root()):
             if node not in data_attr:
                 continue
             successors = list(netx_tree.successors(node))
@@ -227,7 +216,7 @@ class AddNetxTreeToTermGraphPass(NetxEnginePass):
         data_attr = nx.get_node_attributes(netx_tree, "data")
         self.term_graph_root = term_graph.add_term(type='program_root')
         term_graph.add_dependency(term_graph.get_root(), self.term_graph_root)
-        for node in nx.dfs_preorder_nodes(netx_tree, source=netx_tree.get_root()):
+        for node in nx.dfs_postorder_nodes(netx_tree, source=netx_tree.get_root()):
             if node not in data_attr:
                 continue
             successors = list(netx_tree.successors(node))
