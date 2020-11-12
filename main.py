@@ -52,9 +52,9 @@ def main():
             lark_passes.CheckFilesInterpreter,
             lark_passes.CheckReservedRelationNames,
             lark_passes.CheckReferencedRelationsInterpreter,
-            # lark_passes.CheckReferencedIERelationsVisitor,
+            lark_passes.CheckReferencedIERelationsVisitor,
             lark_passes.CheckRuleSafetyVisitor,
-            # lark_passes.TypeCheckingInterpreter,
+            lark_passes.TypeCheckingInterpreter,
             lark_passes.ReorderRuleBodyVisitor,
             graph_converters.LarkTreeToNetxTreeConverter,
         ]

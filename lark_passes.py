@@ -1,6 +1,7 @@
 from lark import Transformer, v_args, Tree
 from lark.visitors import Interpreter, Visitor_Recursive
 from datatypes import DataTypes, get_datatype_enum
+import ie_functions
 
 NODES_OF_LIST_WITH_VAR_NAMES = {"term_list", "const_term_list"}
 NODES_OF_LIST_WITH_RELATION_NODES = {"rule_body_relation_list"}
@@ -273,14 +274,15 @@ class CheckReferencedIERelationsVisitor(Visitor_Recursive):
 
     def __init__(self, **kw):
         super().__init__()
-        self.symbol_table = kw['symbol_table']
 
-    def ie_relation(self, tree):
+    @staticmethod
+    def ie_relation(tree):
         assert_correct_node(tree, "ie_relation", 3, "relation_name", "term_list", "term_list")
-        func_name_node = tree.children[0]
-        assert_correct_node(func_name_node, "relation_name", 1)
-        if not self.symbol_table.contains_ie_function(func_name_node.children[0]):
-            raise Exception
+        ie_func_name = tree.children[0].children[0]
+        try:
+            getattr(ie_functions, ie_func_name)
+        except Exception:
+            raise Exception("can't find ie function")
 
 
 class CheckRuleSafetyVisitor(Visitor_Recursive):
@@ -461,7 +463,6 @@ class ReorderRuleBodyVisitor(Visitor_Recursive):
 
 class TypeCheckingInterpreter(Interpreter):
     """
-    TODO CURRENTLY NOT COMPLETE. TBD how to deal with ie relations
     A lark tree semantic check.
     Assumes that relations and ie relations references and correct arity were checked.
     Also assumes variable references were checked.
@@ -648,7 +649,14 @@ class TypeCheckingInterpreter(Interpreter):
                 self.__type_check_rule_body_term_list(term_list_node, schema, free_var_to_type)
             elif relation_node.data == "ie_relation":
                 assert_correct_node(relation_node, "ie_relation", 3, "relation_name", "term_list", "term_list")
-                # TODO
+                ie_func_name = relation_node.children[0].children[0]
+                input_term_list_node = relation_node.children[1]
+                output_term_list_node = relation_node.children[2]
+                ie_func_data = getattr(ie_functions, ie_func_name)
+                input_schema = ie_func_data.get_input_types()
+                output_schema = ie_func_data.get_output_types(len(output_term_list_node.children))
+                self.__type_check_rule_body_term_list(input_term_list_node, input_schema, free_var_to_type)
+                self.__type_check_rule_body_term_list(output_term_list_node, output_schema, free_var_to_type)
             else:
                 assert 0
 

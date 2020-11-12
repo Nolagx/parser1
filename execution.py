@@ -144,16 +144,10 @@ class PydatalogEngine(DatalogEngineBase):
         ie_inputs = pyDatalog.ask(query_str).answers
         # get all the outputs
         ie_outputs = []
-        ie_output_types = []
         for idx, ie_input in enumerate(ie_inputs):
-            # TODO type checking depending on dean's answer
-            if idx == 0:
-                ie_output_types = ie_func_data.get_output_types(*ie_input)
-            elif ie_output_types != ie_func_data.get_output_types(*ie_input):
-                raise Exception("received incorrect output types")
             output = ie_func_data.ie_function(*ie_input)
             ie_outputs.extend(output)
-        ie_output_types = tuple(ie_output_types)
+        ie_output_types = tuple(ie_func_data.get_output_types(len(ie_relation.output_terms)))
         # check output types
         for ie_output in ie_outputs:
             actual_output_types = []
