@@ -204,6 +204,7 @@ class CheckReferencedRelationsInterpreter(Interpreter):
 
     def __init__(self, **kw):
         super().__init__()
+        self.symbol_table = kw['symbol_table']
         self.relation_name_to_arity = dict()
 
     def __add_relation_definition(self, relation_name_node, schema_defining_node):
@@ -218,12 +219,15 @@ class CheckReferencedRelationsInterpreter(Interpreter):
         assert_correct_node(relation_name_node, "relation_name", 1)
         assert term_list_node.data in NODES_OF_TERM_LISTS
         relation_name = relation_name_node.children[0]
-        if relation_name not in self.relation_name_to_arity:
-            raise Exception
+        if relation_name in self.relation_name_to_arity:
+            correct_arity = self.relation_name_to_arity[relation_name]
+        elif self.symbol_table.contains_relation(relation_name):
+            correct_arity = len(self.symbol_table.get_relation_schema(relation_name))
+        else:
+            raise Exception("relation not defined")
         arity = len(term_list_node.children)
-        correct_arity = self.relation_name_to_arity[relation_name]
         if arity != correct_arity:
-            raise Exception
+            raise Exception("incorrect arity")
 
     def __check_if_relation_already_defined(self, relation_name_node):
         assert_correct_node(relation_name_node, "relation_name", 1)

@@ -47,7 +47,7 @@ def main():
 
         test_input = open("test_input3").read()
         test_input2 = open("test_input5").read()
-        parse_tree = parser.parse(test_input)
+        parse_tree = parser.parse(open("test_input3").read())
         # parse_tree2 = parser.parse(test_input2)
         # test_tree = parse_tree.copy()
 
@@ -68,14 +68,15 @@ def main():
             netx_passes.AddNetxTreeToTermGraphPass,
             execution.NetworkxExecution
         ]
-        parse_tree = run_passes(parse_tree, passes, execution.PydatalogEngine(debug=False))
+        run_passes(parser.parse(open("test_input4").read()), passes, execution.PydatalogEngine(debug=False))
+        run_passes(parser.parse(open("test_input5").read()), passes, execution.PydatalogEngine(debug=False))
+        print(symbol_table)
         # print(parse_tree.pretty_with_nodes())
         # for node in nx.dfs_preorder_nodes(parse_tree):
         #     print(node, end=" ")
         # print()
         # print("=========")
         # netx_passes.ResolveVariablesPass(symbol_table=symbol_table).visit(parse_tree)
-        print(symbol_table)
         # print(parse_tree.pretty())
         # netx_passes.SimplifyRelationsPass().visit(parse_tree)
         # netx_passes.AddNetxTreeToTermGraphPass(term_graph=term_graph).visit(parse_tree)
