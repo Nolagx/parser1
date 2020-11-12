@@ -1,6 +1,5 @@
 from abc import abstractmethod
 import networkx as nx
-from custom_trees import NetxTree
 from enum import Enum
 
 
@@ -10,12 +9,6 @@ class EvalState(Enum):
     DIRTY = 2
 
 
-# TODO add nx to package deps
-
-
-# TODO: i assume some optimizations would not occur on a single node but rather,
-# TODO: they would happen on the entire term graph (global optimizations)
-# TODO: what interface would be comfy for this purpose?
 class TermGraphBase:
 
     @abstractmethod
@@ -35,18 +28,39 @@ class TermGraphBase:
         pass
 
     @abstractmethod
-    def get_term_list(self):
+    def get_term_list_pre_order(self):
+        pass
+
+    @abstractmethod
+    def get_term_list_post_order(self):
+        pass
+
+    @abstractmethod
+    def get_node_children(self, name):
         pass
 
     @abstractmethod
     def get_term_state(self, name):
-        # for now, computed / not computed / dirty (?)
         pass
 
     @abstractmethod
-    def get_term_data(self, name):
-        # will be called to get an AST and send it to the execution engine
-        # or get the result of a node's computation
+    def get_term_value(self, name):
+        pass
+
+    @abstractmethod
+    def get_term_type(self, name):
+        pass
+
+    @abstractmethod
+    def set_term_state(self, name, value):
+        pass
+
+    @abstractmethod
+    def set_term_value(self, name, value):
+        pass
+
+    @abstractmethod
+    def set_term_type(self, name, value):
         pass
 
     @abstractmethod
@@ -57,20 +71,18 @@ class TermGraphBase:
     def transform_graph(self, transformer):
         pass
 
-    # TODO
-    def __repr__(self):
-        pass
-
-    # TODO
     def __str__(self):
         pass
 
 
 class NetxTermGraph(TermGraphBase):  # , MemoryHeap):
+    """implementation of a term graph using a networkx tree"""
     def __init__(self):
+        # OrderedDiGraph makes sure the order of a reported node's children is the same as the order they were
+        # added to the graph.
         self._g = nx.OrderedDiGraph()
         self._root = 0
-        # the root of the whole term graph. will be used as a source for bfs/dfs in term graph transformers
+        # the root of the whole term graph. will be used as a source for bfs/dfs
         self._g.add_node(node_for_adding=self._root, type="main_root")
         self._new_node_id = 1
 
@@ -92,17 +104,32 @@ class NetxTermGraph(TermGraphBase):  # , MemoryHeap):
         assert name2 in self._g.nodes
         self._g.add_edge(name1, name2, **attr)
 
-    def get_term_list(self):
-        # TODO
-        pass
+    def get_term_list_pre_order(self):
+        return nx.dfs_preorder_nodes(self._g, self._root)
 
-    # TODO use state in implementation instead of status after debugging (can't use state with networkx_viewer)
+    def get_term_list_post_order(self):
+        return nx.dfs_postorder_nodes(self._g, self._root)
+
+    def get_node_children(self, name):
+        return self._g.successors(name)
+
     def get_term_state(self, name):
         return self._g.nodes[name]['state']
 
-    def get_term_data(self, name):
-        # TODO
-        pass
+    def get_term_value(self, name):
+        return self._g.nodes[name]['value']
+
+    def get_term_type(self, name):
+        return self._g.nodes[name]['type']
+
+    def set_term_state(self, name, value):
+        self._g.nodes[name]['state'] = value
+
+    def set_term_value(self, name, value):
+        self._g.nodes[name]['value'] = value
+
+    def set_term_type(self, name, value):
+        self._g.nodes[name]['type'] = value
 
     def transform_term_data(self, name, transformer):
         return transformer(self._g.nodes[name])
