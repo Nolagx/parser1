@@ -13,6 +13,8 @@ import execution
 from execution import ExecutionBase
 import ie_functions
 import importlib
+import sys
+import io
 
 symbol_table = SymbolTable()
 term_graph = NetxTermGraph()
@@ -68,9 +70,12 @@ def main():
             netx_passes.AddNetxTreeToTermGraphPass,
             execution.NetworkxExecution
         ]
+
         run_passes(parser.parse(open("test_input4").read()), passes, execution.PydatalogEngine(debug=False))
         run_passes(parser.parse(open("test_input5").read()), passes, execution.PydatalogEngine(debug=False))
-        print(symbol_table)
+
+
+        # print(symbol_table)
         # print(parse_tree.pretty_with_nodes())
         # for node in nx.dfs_preorder_nodes(parse_tree):
         #     print(node, end=" ")
